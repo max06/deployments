@@ -1,14 +1,13 @@
-name: Helm charts
+name: Helm charts testing
 
 on:
   pull_request:
     branches:
       - main
-  workflow_dispatch: 
-    
+
 jobs:
   test:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
     name: Test helm chart
     steps:
       - name: Checkout
@@ -20,10 +19,10 @@ jobs:
         uses: azure/setup-helm@v3
         with:
           version: v3.12.1
-          
+
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
           check-latest: true
 
       - name: Set up chart-testing
@@ -48,30 +47,3 @@ jobs:
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
         run: ct install --target-branch ${{ github.event.repository.default_branch }} --chart-dirs apps
-          
-  release:
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
-      - name: Install Helm
-        uses: azure/setup-helm@v3
-
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
-        with:
-          charts_dir: apps
-        env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          
