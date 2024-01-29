@@ -1,0 +1,6 @@
+{
+    "conventionalCommits.scopes": [
+        "chart/homepage",
+        "charts"
+    ]
+}

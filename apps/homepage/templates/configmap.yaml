@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels:
+    {{- include "homepage.labels" . | nindent 4 }}
+data:
+  settings.yaml: |
+    {{- if .Values.config.settings }}
+    {{- .Values.config.settings | toYaml | nindent 4 }}
+    {{- else }}
+    title: Homepage
+    # providers:
+    #   longhorn:
+    #     url: https://longhorn.my.network
+    {{- end }}
+
+  bookmarks.yaml: |
+    {{- if .Values.config.bookmarks }}
+    {{- .Values.config.bookmarks | toYaml | nindent 4 }}
+    {{- else }}
+    - Developer:
+        - Github:
+            - abbr: GH
+              href: https://github.com/
+    {{- end }}
+
+  services.yaml: |
+    {{- if .Values.config.services }}
+    {{- .Values.config.services | toYaml | nindent 4 }}
+    {{- else }}
+    - My First Group:
+        - My First Service:
+            href: http://localhost/
+            description: Homepage is awesome
+    - My Second Group:
+        - My Second Service:
+            href: http://localhost/
+            description: Homepage is the best
+    - My Third Group:
+        - My Third Service:
+            href: http://localhost/
+            description: Homepage is 😎
+    {{- end }}
+
+  widgets.yaml: |
+    {{- if .Values.config.widgets }}
+    {{- .Values.config.widgets | toYaml | nindent 4 }}
+    {{- else }}
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+          label: "cluster"
+        nodes:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+    - search:
+        provider: duckduckgo
+        target: _blank
+    {{- end }}
+
+  docker.yaml: |
+    {{- if .Values.config.docker }}
+    {{- .Values.config.docker | toYaml | nindent 4 }}
+    {{- else }}
+    {}
+    {{- end }}
+
+  kubernetes.yaml: |
+    {{- if .Values.config.kubernetes }}
+    {{- .Values.config.kubernetes | toYaml | nindent 4 }}
+    {{- else }}
+    mode: cluster
+    {{- end }}
+
+  custom.css: ""
+  custom.js: ""
