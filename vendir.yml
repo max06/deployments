@@ -1,0 +1,24 @@
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+
+directories:
+  - path: vendor
+    contents:
+      - path: argo-cd
+        helmChart:
+          name: argo-cd
+          version: "5.53.12"
+          repository:
+            url: https://argoproj.github.io/argo-helm
+      - path: pihole
+        helmChart:
+          name: pihole
+          version: "2.20.0"
+          repository:
+            url: https://mojo2600.github.io/pihole-kubernetes/
+      - path: whoami
+        helmChart:
+          name: whoami
+          version: "5.1.0"
+          repository:
+            url: https://cowboysysop.github.io/charts/
