@@ -14,6 +14,12 @@ applications:
         helm:
           valueFiles:
             - $values/static/argo-cd/values.yaml
+      - repoURL: https://argoproj.github.io/argo-helm
+        targetRevision: 1.6.1
+        chart: argocd-apps
+        helm:
+          valueFiles:
+            - $values/static/argocd-apps/values.yaml
       - repoURL: https://github.com/max06/deployments
         targetRevision: vendir-demo
         ref: values
