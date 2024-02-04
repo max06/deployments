@@ -1,3 +1,7 @@
+global:
+  additionalLabels:
+    argocd.argoproj.io/instance: argocd
+
 server:
   configEnabled: true
   config:
