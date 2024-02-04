@@ -37,6 +37,7 @@ extraObjects:
     metadata:
       name: argocd
       namespace: argocd
+      argocd.argoproj.io/instance: argocd
     spec:
       project: default
       sources:
