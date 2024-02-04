@@ -16,6 +16,7 @@ extraObjects:
       namespace: argocd
       labels:
         argocd.argoproj.io/secret-type: repository
+        argocd.argoproj.io/instance: argocd
     stringData:
       type: git
       url: https://github.com/max06/deployments
@@ -26,6 +27,7 @@ extraObjects:
       namespace: argocd
       labels:
         argocd.argoproj.io/secret-type: repository
+        argocd.argoproj.io/instance: argocd
     stringData:
       type: helm
       name: max06
