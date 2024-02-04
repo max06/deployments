@@ -1,0 +1,45 @@
+server:
+  configEnabled: true
+  config:
+    repositories: []
+  additionalApplications: []
+  additionalProjects: []
+extraObjects:
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: repo-github
+      namespace: argocd
+      labels:
+        argocd.argoproj.io/secret-type: repository
+    stringData:
+      type: git
+      url: https://github.com/max06/deployments
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: repo-helm
+      namespace: argocd
+      labels:
+        argocd.argoproj.io/secret-type: repository
+    stringData:
+      type: helm
+      name: max06
+      url: https://max06.github.io/deployments
+  - kind: Application
+    apiVersion: argoproj.io/v1alpha1
+    metadata:
+      name: app-argocd
+      namespace: argocd
+    spec:
+      project: default
+      sources:
+        - repoURL: https://argoproj.github.io/argo-helm
+          targetRevision: 5.53.13 # For Helm, this refers to the chart version.
+          chart: argo-cd # Set this when pulling directly from a Helm repo. DO NOT set for git-hosted Helm charts.
+          helm:
+            valueFiles:
+              - $values/static/argo-cd/values.yaml
+        - repoURL: https://github.com/max06/deployments
+          targetRevision: vendir-demo
+          ref: values

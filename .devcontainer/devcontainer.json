@@ -9,7 +9,8 @@
 		"ghcr.io/devcontainers-contrib/features/argo-workflows:1": {},
 		"ghcr.io/devcontainers-contrib/features/eget:1": {},
 		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
-		"ghcr.io/mpriscella/features/helm-chart-testing:1": {}
+		"ghcr.io/mpriscella/features/helm-chart-testing:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2.8.0": {}
 	},
 	"customizations": {
 		"vscode": {
@@ -19,15 +20,19 @@
 				"vivaxy.vscode-conventional-commits"
 			]
 		}
-	},
-	"mounts": [
-		// mount kubeconfig
-		"source=${localEnv:HOME}/.kube/config,target=/home/vscode/.kube/config,type=bind,consistency=cached"
-	],
+	}
+	// "mounts": [
+	// 	// mount kubeconfig
+	// 	"source=${localEnv:HOME}/.kube/config,target=/home/vscode/.kube/config,type=bind,consistency=cached"
+	// ],
 	// add --network=host to docker run
-	"runArgs": [
-		"--network=host"
-	]
+	// "runArgs": [
+	// 	"--network=host"
+	// ],
+	// "postCreateCommand": [
+	// 	"/usr/bin/sudo /usr/local/bin/eget carvel-dev/ytt --to /usr/local/bin/ytt",
+	// 	"/usr/bin/sudo /usr/local/bin/eget carvel-dev/vendir --to /usr/local/bin/vendir"
+	// ]
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
