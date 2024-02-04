@@ -1,7 +1,6 @@
 global:
   additionalLabels:
     argocd.argoproj.io/instance: argocd
-
 server:
   configEnabled: true
   config:
@@ -32,32 +31,3 @@ extraObjects:
       type: helm
       name: max06
       url: https://max06.github.io/deployments
-  - kind: Application
-    apiVersion: argoproj.io/v1alpha1
-    metadata:
-      name: argocd
-      namespace: argocd
-      labels:
-        argocd.argoproj.io/instance: argocd
-    spec:
-      project: default
-      sources:
-        - repoURL: https://argoproj.github.io/argo-helm
-          targetRevision: 5.53.13 # For Helm, this refers to the chart version.
-          chart: argo-cd # Set this when pulling directly from a Helm repo. DO NOT set for git-hosted Helm charts.
-          helm:
-            valueFiles:
-              - $values/static/argo-cd/values.yaml
-        - repoURL: https://github.com/max06/deployments
-          targetRevision: vendir-demo
-          ref: values
-      # Destination cluster and namespace to deploy the application
-      destination:
-        # cluster API URL
-        server: https://kubernetes.default.svc
-        # or cluster name
-        # name: in-cluster
-        # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
-        namespace: argocd
-
-      revisionHistoryLimit: 10
