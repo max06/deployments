@@ -29,7 +29,7 @@ extraObjects:
   - kind: Application
     apiVersion: argoproj.io/v1alpha1
     metadata:
-      name: app-argocd
+      name: argocd
       namespace: argocd
     spec:
       project: default
@@ -43,3 +43,13 @@ extraObjects:
         - repoURL: https://github.com/max06/deployments
           targetRevision: vendir-demo
           ref: values
+      # Destination cluster and namespace to deploy the application
+      destination:
+        # cluster API URL
+        server: https://kubernetes.default.svc
+        # or cluster name
+        # name: in-cluster
+        # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+        namespace: argocd
+
+      revisionHistoryLimit: 10
