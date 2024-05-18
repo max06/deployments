@@ -3,6 +3,19 @@ entries:
   homepage:
   - apiVersion: v2
     appVersion: v0.8.6
+    created: "2024-05-18T14:02:28.221189302Z"
+    description: Deploys gethomepage/homepage
+    digest: cf4ad09ad0aee38f57fd132dfd5b6c5e46f8686b165c5260758d3c66be6ccc67
+    icon: https://gethomepage.dev/latest/assets/light_squircle@2x.png
+    maintainers:
+    - name: max06
+    name: homepage
+    type: application
+    urls:
+    - https://github.com/max06/deployments/releases/download/homepage-0.1.2/homepage-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: v0.8.6
     created: "2024-05-18T13:20:22.589209072Z"
     description: Deploys gethomepage/homepage
     digest: 8a9eb0a9f3b428a3000f8b8f7aeb663dc40be7b5af555a1a0dc12b8797312d11
@@ -27,4 +40,4 @@ entries:
     urls:
     - https://github.com/max06/deployments/releases/download/homepage-0.1.0/homepage-0.1.0.tgz
     version: 0.1.0
-generated: "2024-05-18T13:20:22.589221426Z"
+generated: "2024-05-18T14:02:28.221205863Z"
