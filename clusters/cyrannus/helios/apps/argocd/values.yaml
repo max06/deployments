@@ -1,0 +1,78 @@
+global:
+  additionalLabels:
+    argocd.argoproj.io/instance: argocd
+  domain: ci.max06.net
+
+configs:
+  params:
+    server.insecure: true
+
+redis-ha:
+  enabled: true
+
+controller:
+  replicas: 1
+
+server:
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+
+repoServer:
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+
+applicationSet:
+  replicas: 2
+
+# extraObjects:
+#   - apiVersion: v1
+#     kind: Secret
+#     metadata:
+#       name: repo-github
+#       namespace: argocd
+#       labels:
+#         argocd.argoproj.io/secret-type: repository
+#         argocd.argoproj.io/instance: argocd
+#     stringData:
+#       type: git
+#       url: https://github.com/max06/deployments
+#   - apiVersion: v1
+#     kind: Secret
+#     metadata:
+#       name: repo-helm
+#       namespace: argocd
+#       labels:
+#         argocd.argoproj.io/secret-type: repository
+#         argocd.argoproj.io/instance: argocd
+#     stringData:
+#       type: helm
+#       name: max06
+#       url: https://max06.github.io/deployments
+
+extraObjects:
+  - apiVersion: traefik.io/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: argocd-server
+      namespace: argocd
+    spec:
+      entryPoints:
+        - websecure
+      routes:
+        - kind: Rule
+          match: Host(`{{ .Values.global.domain }}`)
+          priority: 10
+          services:
+            - name: argocd-server
+              port: 80
+        - kind: Rule
+          match: Host(`{{ .Values.global.domain }}`) && Header(`Content-Type`, `application/grpc`)
+          priority: 11
+          services:
+            - name: argocd-server
+              port: 80
+              scheme: h2c
+      tls:
+        certResolver: default
