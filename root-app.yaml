@@ -1,0 +1,29 @@
+applications:
+  - name: argocd
+    namespace: argocd
+    project: default
+    additionalLabels:
+      argocd.argoproj.io/instance: argocd
+    sources:
+      - repoURL: https://argoproj.github.io/argo-helm
+        targetRevision: 7.7.22 # For Helm, this refers to the chart version.
+        chart: argo-cd # Set this when pulling directly from a Helm repo. DO NOT set for git-hosted Helm charts.
+        helm:
+          valueFiles:
+            - $values/clusters/cyrannus/helios/apps/argocd/values.yaml
+      - repoURL: https://argoproj.github.io/argo-helm
+        targetRevision: 2.0.2
+        chart: argocd-apps
+        helm:
+          valueFiles:
+            - $values/root-app.yaml
+      - repoURL: https://github.com/max06/deployments
+        targetRevision: main
+        ref: values
+    # Destination cluster and namespace to deploy the application
+    destination:
+      name: in-cluster
+      # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+      namespace: argocd
+
+    revisionHistoryLimit: 10

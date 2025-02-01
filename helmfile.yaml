@@ -8,3 +8,8 @@ releases:
     chart: argo/argo-cd
     values:
       - clusters/cyrannus/helios/apps/argocd/values.yaml
+  - name: root
+    namespace: argocd
+    chart: argo/argocd-apps
+    values:
+      - root-app.yaml
