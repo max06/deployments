@@ -1,6 +1,6 @@
 global:
-  additionalLabels:
-    argocd.argoproj.io/instance: argocd
+  # additionalLabels:
+  #   argocd.argoproj.io/instance: argocd
   domain: ci.max06.net
 
 configs:

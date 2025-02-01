@@ -2,8 +2,8 @@ applications:
   argocd:
     namespace: argocd
     project: default
-    additionalLabels:
-      argocd.argoproj.io/instance: argocd
+    # additionalLabels:
+    #   argocd.argoproj.io/instance: argocd
     sources:
       - repoURL: https://argoproj.github.io/argo-helm
         targetRevision: 7.7.22 # For Helm, this refers to the chart version.
