@@ -9,6 +9,8 @@ configs:
 
 redis-ha:
   enabled: true
+  labels:
+    argocd.argoproj.io/instance: argocd
 
 controller:
   replicas: 1
