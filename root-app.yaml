@@ -28,7 +28,7 @@ applications:
 
     revisionHistoryLimit: 10
 
-  travisghansen/rancher-to-argocd-controller:
+  rancher-to-argocd-controller:
     namespace: argocd
     project: default
     sources:
