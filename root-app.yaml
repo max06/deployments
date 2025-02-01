@@ -20,6 +20,7 @@ applications:
       - repoURL: https://github.com/max06/deployments
         targetRevision: main
         ref: values
+        path: clusters/cyrannus/helios/apps/argocd
     # Destination cluster and namespace to deploy the application
     destination:
       name: in-cluster
