@@ -9,7 +9,7 @@ configs:
 
 redis-ha:
   enabled: true
-  labels:
+  extraLabels:
     argocd.argoproj.io/instance: argocd
 
 controller:
@@ -59,6 +59,8 @@ extraObjects:
     metadata:
       name: argocd-server
       namespace: argocd
+      labels:
+        argocd.argoproj.io/instance: argocd
     spec:
       entryPoints:
         - websecure
