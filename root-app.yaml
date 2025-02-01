@@ -2,8 +2,8 @@ applications:
   argocd:
     namespace: argocd
     project: default
-    # additionalLabels:
-    #   argocd.argoproj.io/instance: argocd
+    additionalLabels:
+      argocd.argoproj.io/instance: argocd
     sources:
       - repoURL: https://argoproj.github.io/argo-helm
         targetRevision: 7.7.22 # For Helm, this refers to the chart version.
@@ -27,42 +27,17 @@ applications:
       namespace: argocd
 
     revisionHistoryLimit: 10
-#  guestbook:
-#    namespace: argocd
-#    additionalLabels: {}
-#    additionalAnnotations: {}
-#    finalizers:
-#    - resources-finalizer.argocd.argoproj.io
-#    project: guestbook
-#    source:
-#      repoURL: https://github.com/argoproj/argocd-example-apps.git
-#      targetRevision: HEAD
-#      path: guestbook
-#      directory:
-#        recurse: true
-#    # ArgoCD v2.6 or later
-#    sources:
-#    - chart: elasticsearch
-#      repoURL: https://helm.elastic.co
-#      targetRevision: 8.5.1
-#    - repoURL: https://github.com/argoproj/argocd-example-apps.git
-#      path: guestbook
-#      targetRevision: HEAD
-#    destination:
-#      server: https://kubernetes.default.svc
-#      namespace: guestbook
-#    syncPolicy:
-#      automated:
-#        prune: false
-#        selfHeal: false
-#      syncOptions:
-#      - CreateNamespace=true
-#    revisionHistoryLimit: null
-#    ignoreDifferences:
-#    - group: apps
-#      kind: Deployment
-#      jsonPointers:
-#      - /spec/replicas
-#    info:
-#    - name: url
-#      value: https://argoproj.github.io/
+
+  travisghansen/rancher-to-argocd-controller:
+    namespace: argocd
+    project: default
+    sources:
+      - repoURL: https://githun.com/max06/deployments
+        targetRevision: main
+        path: clusters/cyrannus/helios/apps/rancher-to-argocd-controller
+    destination:
+      name: in-cluster
+      namespace: rancher-to-argocd-controller
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true
