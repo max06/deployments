@@ -32,7 +32,7 @@ applications:
     namespace: argocd
     project: default
     sources:
-      - repoURL: https://githun.com/max06/deployments
+      - repoURL: https://github.com/max06/deployments
         targetRevision: main
         path: clusters/cyrannus/helios/apps/rancher-to-argocd-controller
     destination:
