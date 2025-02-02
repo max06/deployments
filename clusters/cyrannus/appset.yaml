@@ -31,6 +31,8 @@ spec:
         repoURL: https://github.com/max06/deployments
         targetRevision: HEAD
         path: "clusters/cyrannus/{{ .name }}/apps/{{ .path.basename }}"
+        kustomize:
+          enableHelm: true
       destination:
         server: "{{ .server }}"
         namespace: "{{ .path.basename }}"
