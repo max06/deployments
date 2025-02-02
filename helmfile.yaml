@@ -7,7 +7,7 @@ releases:
     namespace: argocd
     chart: argo/argo-cd
     values:
-      - clusters/cyrannus/helios/apps/argocd/values.yaml
+      - apps/argocd/manifests/values.yaml
   - name: root
     namespace: argocd
     chart: argo/argocd-apps
