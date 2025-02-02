@@ -1,6 +1,6 @@
 global:
   additionalLabels:
-    argocd.argoproj.io/instance: argocd
+    # argocd.argoproj.io/instance: argocd
   domain: ci.max06.net
 
 configs:
@@ -11,8 +11,8 @@ configs:
 
 redis-ha:
   enabled: true
-  extraLabels:
-    argocd.argoproj.io/instance: argocd
+  # extraLabels:
+  #   argocd.argoproj.io/instance: argocd
 
 controller:
   replicas: 1
@@ -61,8 +61,8 @@ extraObjects:
     metadata:
       name: argocd-server
       namespace: argocd
-      labels:
-        argocd.argoproj.io/instance: argocd
+      # labels:
+      #   argocd.argoproj.io/instance: argocd
     spec:
       entryPoints:
         - websecure
