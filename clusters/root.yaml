@@ -22,7 +22,7 @@ applicationsets:
 
     template:
       metadata:
-      name: "{{ .values.clusterName }}-{{ .path.basename }}"
+        name: "{{ .values.clusterName }}-{{ .path.basename }}"
       spec:
         project: default
         source:
