@@ -5,7 +5,8 @@ resources:
   - ../../../../../apps/argocd/manifests
 
 helmCharts:
-  - valuesInline:
+  - name: argocd
+    valuesInline:
       global:
         additionalLabels:
           argocd.argoproj.io/instance: helios-argocd
