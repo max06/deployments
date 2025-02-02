@@ -25,7 +25,7 @@ applicationsets:
         source:
           repoURL: https://github.com/max06/deployments
           targetRevision: HEAD
-          path: "{{ .path }}"
+          path: "{{ .path.path }}"
           kustomize:
             enableHelm: true
         destination:
