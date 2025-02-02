@@ -12,4 +12,4 @@ releases:
     namespace: argocd
     chart: argo/argocd-apps
     values:
-      - root-app.yaml
+      - clusters/root.yaml

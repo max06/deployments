@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: argocd
+    name: in-cluster
+  project: default
+
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      targetRevision: 7.7.22 # For Helm, this refers to the chart version.
+      chart: argo-cd # Set this when pulling directly from a Helm repo. DO NOT set for git-hosted Helm charts.
+      helm:
+        valueFiles:
+          - $values/clusters/cyrannus/helios/apps/argocd/values.yaml
+    # - repoURL: https://argoproj.github.io/argo-helm
+    #   targetRevision: 2.0.2
+    #   chart: argocd-apps
+    #   helm:
+    #     valueFiles:
+    #       - $values/root-app.yaml
+    - repoURL: https://github.com/max06/deployments
+      targetRevision: main
+      ref: values
+      path: clusters/cyrannus/helios/apps/argocd
+  revisionHistoryLimit: 10

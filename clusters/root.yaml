@@ -1,0 +1,14 @@
+applications:
+  root:
+    namespace: argocd
+    project: default
+    sources:
+      - repoURL: https://github.com/max06/deployments
+        targetRevision: main
+        path: clusters
+    destination:
+      name: in-cluster
+      namespace: root
+    syncPolicy:
+      syncOptions:
+        - CreateNamespace=true

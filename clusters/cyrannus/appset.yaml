@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cyrannus
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    # matrix 'parent' generator
+    - matrix:
+        generators:
+          # cluster generator, 'child' #2
+          - clusters:
+              selector:
+            #   matchLabels:
+            #     argocd.argoproj.io/secret-type: cluster
+            # clusterGroup: cyrannus
+          # git generator, 'child' #1
+          - git:
+              repoURL: https://github.com/max06/deployments
+              revision: HEAD
+              files:
+                - path: "clusters/cyrannus/*"
+
+  template:
+    metadata:
+      name: "{{.name}}-{{.path.basename}}"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/max06/deployments
+        targetRevision: HEAD
+        path: "clusters/cyrannus/{{ .name }}/apps/{{ .path.basename }}"
+      destination:
+        server: "in-cluster"
+        namespace: argocd
