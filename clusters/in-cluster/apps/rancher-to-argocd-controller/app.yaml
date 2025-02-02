@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/max06/deployments
     targetRevision: main
-    path: clusters/cyrannus/helios/apps/rancher-to-argocd-controller
+    path: clusters/in-cluster/apps/rancher-to-argocd-controller
   syncPolicy:
     syncOptions:
       - CreateNamespace=true

@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: test
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        {} # Automatically use all clusters defined within Argo CD
+        # selector:
+        #   matchLabels:
+        #     argocd.argoproj.io/secret-type: cluster
+        # clusterGroup: cyrannus
+
+  template:
+    metadata:
+      name: "{{.name}}-hello-world"
+    spec:
+      destination:
+        name: "{{ .name }}"
+        namespace: hello-world
+      project: default
+      source:
+        chart: hello-world
+        repoURL: https://helm.github.io/examples
+        targetRevision: 0.1.0
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true

@@ -95,10 +95,10 @@ spec:
     spec:
       serviceAccountName: rancher-to-argocd-controller
       containers:
-        - name: rancher-to-argocd-controller
+        - name: rancher-to-argocd-controller-cyrannus
           image: travisghansen/rancher-to-argocd-controller:latest
           env:
             - name: ENVIRONMENT_ID
-              value: "dev"
+              value: "cyrannus"
             - name: RANCHER_URI
               value: "https://rancher.max06.net"
