@@ -9,16 +9,25 @@ spec:
     # Cluster/Apps
     - matrix:
         generators:
-          - clusters:
-              values:
-                clusterGroup: "{{ or .metadata.labels.clusterGroup nil }}"
-                clusterName: "{{ or .metadata.labels.clusterId .name }}"
+          - matrix:
+              generators:
+                - clusters:
+                    values:
+                      clusterGroup: "{{ or .metadata.labels.clusterGroup nil }}"
+                      clusterName: "{{ or .metadata.labels.clusterId .name }}"
+                - git:
+                    repoURL: https://github.com/max06/deployments
+                    revision: HEAD
+                    directories:
+                      - path: "clusters/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*"
+                      - path: "clusters/{{ .values.clusterName }}/apps/*"
+
           - git:
               repoURL: https://github.com/max06/deployments
               revision: HEAD
-              directories:
-                - path: "clusters/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*"
-                - path: "clusters/{{ .values.clusterName }}/apps/*"
+              files:
+                - path: "{{ .path.path }}/config.yaml"
+              pathParamPrefix: appConfig
 
   template:
     metadata:

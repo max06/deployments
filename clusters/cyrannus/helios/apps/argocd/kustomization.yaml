@@ -3,3 +3,9 @@ kind: Kustomization
 
 resources:
   - ../../../../../apps/argocd/manifests
+
+helmCharts:
+  - valuesInline:
+      global:
+        additionalLabels:
+          argocd.argoproj.io/instance: helios-argocd
