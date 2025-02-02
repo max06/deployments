@@ -4,22 +4,25 @@ metadata:
   name: test
 spec:
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
+  goTemplateOptions: ["missingkey=invalid"]
   generators:
     # Cluster/Apps
     - matrix:
         generators:
-          - clusters: {}
+          - clusters:
+              values:
+                clusterGroup: "{{ or .metadata.labels.clusterGroup nil }}"
+                clusterName: "{{ or .metadata.labels.clusterId .name }}"
           - git:
               repoURL: https://github.com/max06/deployments
               revision: HEAD
               directories:
-                - path: "clusters/*/{{ .name }}/apps/*"
-                - path: "clusters/{{ .name }}/apps/*"
+                - path: "clusters/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*"
+                - path: "clusters/{{ .values.clusterName }}/apps/*"
 
   template:
     metadata:
-      name: "{{ .name }}-{{ .path.basename }}"
+      name: "{{ .values.clusterName }}-{{ .path.basename }}"
     spec:
       destination:
         server: "{{ .server }}"
