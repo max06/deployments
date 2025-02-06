@@ -7,3 +7,6 @@ helmCharts:
     version: 0.1.0
     releaseName: hello-world
     namespace: hello-world
+
+resources:
+  - ingress.yaml
