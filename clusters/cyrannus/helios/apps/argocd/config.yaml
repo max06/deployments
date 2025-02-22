@@ -1,3 +1,5 @@
 app:
   labels:
     argocd.argoproj.io/instance: helios-argocd
+
+foo: bar
