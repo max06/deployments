@@ -4,40 +4,68 @@ applicationsets:
     finalizers:
       - resources-finalizer.argocd.argoproj.io
     goTemplate: true
-    goTemplateOptions: ["missingkey=error"]
+    goTemplateOptions: ["missingkey=invalid"]
+
     generators:
       # Cluster/Apps
-      - matrix:
+      - merge:
+          mergeKeys:
+            - values
           generators:
-            - clusters:
-                values:
-                  clusterGroup: "{{ or .metadata.labels.clusterGroup nil }}"
-                  clusterName: "{{ or .metadata.labels.clusterId .name }}"
+            - matrix:
+                generators:
+                  - clusters:
+                      selectors:
+                  - git:
+                      repoURL: https://github.com/max06/deployments
+                      revision: HEAD
+                      directories:
+                        # global - on every cluster
+                        - path: "clusters/apps/*"
+                        # per clusterGroup - on every cluster in a group
+                        - path: "clusters/{{ or .metadata.labels.clusterGroup nil }}/apps/*"
+                        # on a specific single cluster, either grouped or ungrouped
+                        - path: "clusters/{{ or .metadata.labels.clusterGroup nil }}/{{ or .metadata.labels.clusterId .name }}/apps/*"
+                        - path: "clusters/{{ or .metadata.labels.clusterId .name }}/apps/*"
+                        # appName: "{{- printf `{{ .appPath.path.basename }}` -}}"
+                      pathParamPrefix: "apps"
+                      values:
+                        selector: "{{- printf `{{ .apps.path.path }}` -}}"
+
             - git:
                 repoURL: https://github.com/max06/deployments
                 revision: HEAD
-                directories:
-                  - path: "clusters/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*"
-                  - path: "clusters/{{ .values.clusterName }}/apps/*"
-
-      - git:
-          repoURL: https://github.com/max06/deployments
-          revision: HEAD
-          files:
-            - path: "{{ .path.path }}/config.yaml"
-          pathParamPrefix: appConfig
+                files:
+                  - path: "clusters/*/apps/*/config.yaml"
+                  - path: "clusters/*/*/apps/*/config.yaml"
+                values:
+                  selector: "{{.configs.path.path}}"
+                pathParamPrefix: "configs"
+          template:
+            spec:
+              destination:
+                server: "{{ .server }}"
+                namespace: "{{ or .namespace .apps.path.basename }}"
 
     template:
       metadata:
-        name: "{{ .values.clusterName }}-{{ .path.basename }}-{{ .appConfig }}"
+        name: "{{ or .metadata.labels.clusterId .name }}-{{ .apps.path.basename }}"
       spec:
         project: default
-        source:
-          repoURL: https://github.com/max06/deployments
-          targetRevision: HEAD
-          path: "{{ .path.path }}"
-          kustomize:
-            enableHelm: true
-        destination:
-          server: "{{ .server }}"
-          namespace: "{{ .path.basename }}"
+        sources:
+          # Primary source: app definition from apps/ directory
+          - repoURL: https://github.com/max06/deployments
+            targetRevision: HEAD
+            path: "apps/{{ or .baseApp .apps.path.basename }}"
+            kustomize:
+              enableHelm: true
+
+          # Secondary source: cluster-specific configuration
+          - repoURL: https://github.com/max06/deployments
+            targetRevision: HEAD
+            path: "{{ .apps.path.path }}"
+            kustomize:
+              enableHelm: true
+        syncPolicy:
+          syncOptions:
+            - CreateNamespace=true
