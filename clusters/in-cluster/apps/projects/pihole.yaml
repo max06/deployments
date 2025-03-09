@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: pihole
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Project for Pi-hole DNS ad blocker deployment
+
+  # Source repositories where your Pi-hole manifests are stored
+  sourceRepos:
+    - "https://github.com/max06/deployments" # Replace with your actual repository
+    - "https://charts.mojo2600.eu" # Pi-hole Helm chart repository
+
+  # Destination clusters and namespaces where Pi-hole can be deployed
+  destinations:
+    - name: picon # Your cluster name
+      namespace: pihole
+
+  # Allowed resource kinds and groups
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "Namespace"
+  namespaceResourceWhitelist:
+    - group: "apps"
+      kind: "Deployment"
+    - group: "apps"
+      kind: "StatefulSet"
+    - group: "apps"
+      kind: "DaemonSet"
+    - group: ""
+      kind: "Service"
+    - group: ""
+      kind: "ConfigMap"
+    - group: ""
+      kind: "Secret"
+    - group: ""
+      kind: "PersistentVolumeClaim"
+    - group: "networking.k8s.io"
+      kind: "Ingress"
+    - group: "policy"
+      kind: "PodDisruptionBudget"
+
+  # Role bindings for team members
+  roles:
+    - name: admin
+      description: Admin role with full access to project resources
+      policies:
+        - p, proj:pihole:admin, applications, *, pihole/*, allow
+      groups:
+        - pihole-admins # Replace with your actual admin group
+    - name: read-only
+      description: Read-only access to project resources
+      policies:
+        - p, proj:pihole:read-only, applications, get, pihole/*, allow
+      groups:
+        - pihole-viewers # Replace with your actual viewer group
