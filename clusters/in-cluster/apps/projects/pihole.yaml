@@ -15,7 +15,7 @@ spec:
 
   # Destination clusters and namespaces where Pi-hole can be deployed
   destinations:
-    - name: picon # Your cluster name
+    - name: cyrannus-picon # Your cluster name
       namespace: pihole
 
   # Allowed resource kinds and groups
