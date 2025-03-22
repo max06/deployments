@@ -82,3 +82,23 @@ extraObjects:
               scheme: h2c
       tls:
         certResolver: default
+
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: cdk8s-config
+      namespace: argocd
+    data:
+      plugin.yaml: |
+        apiVersion: argoproj.io/v1alpha1
+        kind: ConfigManagementPlugin
+        metadata:
+          name: cdk8s
+        spec:
+          version: v1.0
+          init:
+            command: ["/bin/sh"]
+            args: ["-c", "pipenv install && cdk8s synth"]
+          generate:
+            command: ["/bin/sh"]
+            args: ["-c", "cat dist/*"]

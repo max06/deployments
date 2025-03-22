@@ -9,3 +9,6 @@ helmCharts:
     namespace: argocd
     includeCRDs: true
     valuesFile: values.yaml
+
+patches:
+  - path: patches/repo-server.yaml
