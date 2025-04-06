@@ -1,0 +1,4 @@
+---
+releases:
+  - name: kubevirt-operator
+    chart: ../kubevirt-operator
