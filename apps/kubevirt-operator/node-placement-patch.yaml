@@ -6,5 +6,5 @@ spec:
   infra:
     nodePlacement:
       tolerations:
-        - key: node-role.kubernetes.io/control-plane
+        - key: node-role.kubernetes.io/etcd
           operator: Exists
