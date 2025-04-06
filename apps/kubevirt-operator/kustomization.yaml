@@ -3,4 +3,10 @@ kind: Kustomization
 
 resources:
   - https://github.com/kubevirt/kubevirt/releases/download/v1.5.0/kubevirt-operator.yaml
-  - https://github.com/kubevirt/kubevirt/releases/download/v1.5.0/kubevirt-cr.yaml
+  - https://github.com/kubevirt/kubevirt/releases/download/v1.5A.0/kubevirt-cr.yaml
+
+patches:
+  - path: node-placement-patch.yaml
+    target:
+      kind: KubeVirt
+      name: kubevirt
