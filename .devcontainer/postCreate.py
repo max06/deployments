@@ -125,6 +125,25 @@ def main():
         "install helmfile", [
             "sudo eget helmfile/helmfile --to /usr/local/bin/helmfile", "helmfile init --force"]
     )
+    runner.add_task(
+        "install cdk8s", "npm install -g cdk8s-cli"
+    )
+
+    runner.add_task(
+        "install krew", '''
+            set -x; cd "$(mktemp -d)" &&
+            OS="$(uname | tr '[:upper:]' '[:lower:]' )" &&
+            ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\\(arm\\)\\(64\\)\\?.*/\\1\\2/' -e 's/aarch64$/arm64/')" &&
+            KREW="krew-${OS}_${ARCH}" &&
+            curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
+            tar zxvf "${KREW}.tar.gz" &&
+            ./"${KREW}" install krew
+        '''
+    )
+
+    runner.add_task(
+        "install kubevirt cli", "kubectl krew install virt", ["install krew"]
+    )
 
     success = runner.run_tasks()
     sys.exit(0 if success else 1)
