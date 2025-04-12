@@ -1,0 +1,20 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[requires]
+python_version = "3"
+
+[packages]
+constructs = "~=10.4.2"
+cdk8s = "~=2.69.54"
+cdk8s-plus-28 = "~=2.5.6"
+pyyaml = "~=6.0.2"
+pydantic = "~=2.10.6"
+pydantic-settings = "~=2.8.1"
+
+[dev-packages]
+
+[pipenv]
+allow_prereleases = true
