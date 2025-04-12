@@ -237,6 +237,83 @@ def export_applications(apps, output_dir):
 
         print(f"Exported application to {output_file}")
 
+def validate_plain_appset_sources(apps):
+    """Validate that the plain ApplicationSet generates one sources entry pointing to the directory in the repo"""
+    valid = True
+
+    for app in apps:
+        # Check if this is an application from the plain ApplicationSet
+        if not app.get("metadata", {}).get("name", "").startswith("in-cluster-"):
+            continue
+
+        # Check for sources
+        sources = app.get("spec", {}).get("sources", [])
+        if not sources:
+            print(f"  ERROR: Application {app.get('metadata', {}).get('name')} missing sources")
+            valid = False
+            continue
+
+        # Check that there is exactly one source
+        if len(sources) != 1:
+            print(f"  ERROR: Application {app.get('metadata', {}).get('name')} has {len(sources)} sources, expected 1")
+            valid = False
+            continue
+
+        # Check that the source points to the repository
+        source = sources[0]
+        if source.get("repoURL") != "https://github.com/max06/deployments":
+            print(f"  ERROR: Application {app.get('metadata', {}).get('name')} source repoURL is {source.get('repoURL')}, expected https://github.com/max06/deployments")
+            valid = False
+
+        # Check that the path is a directory in the repository
+        path = source.get("path", "")
+        if not path.startswith("clusters/"):
+            print(f"  ERROR: Application {app.get('metadata', {}).get('name')} source path is {path}, expected to start with clusters/")
+            valid = False
+
+    return valid
+
+def validate_projects_app(apps):
+    """Validate that the 'projects' application has the correct source configuration"""
+    valid = True
+
+    # Find the projects application
+    projects_app = None
+    for app in apps:
+        if app.get("metadata", {}).get("name") == "in-cluster-projects":
+            projects_app = app
+            break
+
+    if not projects_app:
+        print("  ERROR: Could not find application named 'in-cluster-projects'")
+        return False
+
+    # Check for sources
+    sources = projects_app.get("spec", {}).get("sources", [])
+    if not sources:
+        print("  ERROR: 'in-cluster-projects' application missing sources")
+        return False
+
+    # Check that there is exactly one source
+    if len(sources) != 1:
+        print(f"  ERROR: 'in-cluster-projects' application has {len(sources)} sources, expected 1")
+        return False
+
+    # Check that the source points to the repository
+    source = sources[0]
+    if source.get("repoURL") != "https://github.com/max06/deployments":
+        print(f"  ERROR: 'in-cluster-projects' application source repoURL is {source.get('repoURL')}, expected https://github.com/max06/deployments")
+        valid = False
+
+    # Check that the path is the correct directory in the repository
+    path = source.get("path", "")
+    expected_path = "clusters/in-cluster/apps/projects"
+    if path != expected_path:
+        print(f"  ERROR: 'in-cluster-projects' application source path is {path}, expected {expected_path}")
+        valid = False
+
+    return valid
+
 def main():
     parser = argparse.ArgumentParser(description="Test ArgoCD ApplicationSet generator combinations and templates")
 
@@ -254,9 +331,16 @@ def main():
 
     args = parser.parse_args()
 
-    # Create output directory if it doesn't exist
-    if args.output_dir and not os.path.exists(args.output_dir):
+    # Clean the output directory if it exists
+    if args.output_dir and os.path.exists(args.output_dir):
+        print(f"Cleaning output directory: {args.output_dir}")
+        import shutil
+        shutil.rmtree(args.output_dir)
+
+    # Create output directory
+    if args.output_dir:
         os.makedirs(args.output_dir)
+        print(f"Created output directory: {args.output_dir}")
 
     # Process ApplicationSets
     all_apps = []
@@ -333,7 +417,14 @@ def main():
 
         # Validate applications
         print(f"\n=== Validating applications for {appset_name} ===")
-        valid = validate_applications(apps)
+
+        # Define validation rules based on ApplicationSet name
+        validation_rules = {}
+        if appset_name == "plain":
+            validation_rules["plain_appset_sources"] = validate_plain_appset_sources
+            validation_rules["projects_app"] = validate_projects_app
+
+        valid = validate_applications(apps, validation_rules)
 
         # Export applications if requested
         if apps and args.output_dir:
