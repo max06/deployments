@@ -1,0 +1,42 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# This project
+
+This project aims to provide a gitops-style approach to argo-cd deployments.
+
+The main entrypoint is [helmfile.yaml](mdc:helmfile.yaml). It's used for bootstrapping new deployments for the very first time, as well as for updating the applicationSets in argo-cd handling all other deployments afterwards.
+
+[root.yaml](mdc:clusters/root.yaml) is used to define all applicationSets that are used to generate the actual argo-cd apps. 
+
+The `clusters/` directory contains a specific directory structure to define clusters or constellations (logical groups of clusters with similar tasks, deployments or just to show a common owner) with clusters.
+
+Examples:
+
+- `clusters/in-cluster` is the upstream or management cluster. It's running rancher (for deploying and managing downstream kubernetes clusters) and argo-cd (managing all deployments on all clusters). 
+- `clusters/in-cluster/apps` contains one directory for each app deployment on the `in-cluster` management cluster.
+
+- `clusters/cyrannus` is a constellation
+- `clusters/cyrannus/picon` is a downstream cluster
+- `clusters/cyrannus/picon/apps` contains one directory for each app deployment on the `picon` downstream cluster.
+
+- `clusters/apps` contains one directory for each app deployment on every cluster.
+- `clusters/cyrannus/apps` contains one directory for each app deployment on every cluster in the `cyrannus`-constellation.
+
+Every app-deployment in the `clusters/`-directory contains either raw manifests to be deployed directly (example: [helmchartconfig.yaml](mdc:clusters/cyrannus/picon/apps/traefik/helmchartconfig.yaml)), or a `config.yaml`-file with information pointing to a reusable app-template in the `apps/`-directory in the root of the repository.
+
+The `apps/`-directory contains one directory for each reusable app-template. These app-templates can come in various formats, depending on the needs of each app.
+
+Following is a list of already defined app-types and how to recognize them:
+
+- `plain`: To be used when only plain manifests are being used. This is mostly the case for basic cluster configurations, for example for configuring cilium settings. Recognized by the absence of `helmfile`, `kustomization.yaml` and `config.yaml`.
+- `local chart`: Contains a local helm-chart, recognizable by `Chart.yaml`. To be used for own custom charts when no upstream chart is available or usable.
+- `upstream chart`: Defined in a `helmfile` to be able to pin the chart-version. No `values.yaml` present since no value overrides are needed.
+- `upstream chart with defaults`: Same as `upstream chart` but with `values.yaml` present.
+- `upstream chart with modifications`: Same as `upstream chart` but with `kustomization.yaml` present to allow for chart modifications not covered by chart values.
+- `upstream chart with defaults and modifications`: A combination of `upstream chart with defaults` and `upstream chart with modifications`.
+
+Each of these app-types requires its own format in the applicationSet-templates. They differ mainly in the `sources`-configuration. For example, a plain app will use a single source pointing to this repo (https://github.com/max06/deployments). An `upstream chart with defaults` will point to the chart defined in the helmfile with a second source pointing to the values file in this repo. The goal is to provide as much transparency to the argo-cd user as possible, with the ability to change helm-values directly in argo-cd for testing.

@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Handling git
+
+- You will never commit changes on your own, only when explicitly requested by me.
+- You will never try to clean any uncommitted changes from the workspace.
+- You will never, under any circumstances, take any action with git on the branches main, master or any other protected branch.
