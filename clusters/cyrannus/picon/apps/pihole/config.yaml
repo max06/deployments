@@ -1,3 +1,4 @@
 namespace: pihole
 project: pihole
 argoProject: pihole
+baseApp: pihole

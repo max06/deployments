@@ -1,4 +1,116 @@
 applicationsets:
+  # New ApplicationSet for plain deployments
+  plain:
+    namespace: argocd
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+    goTemplate: true
+    goTemplateOptions: ["missingkey=invalid"]
+    applyNestedSelectors: true
+
+    generators:
+      - matrix:
+          generators:
+            # Original app deployment generators
+            - matrix:
+                generators:
+                  - clusters:
+                      selectors:
+                      values:
+                        clusterGroup: "{{ or .metadata.labels.clusterGroup nil }}"
+                        clusterName: "{{ or .metadata.labels.clusterId .name }}"
+                        clusterSlug: "{{ if .metadata.labels.clusterGroup }}{{ .metadata.labels.clusterGroup }}-{{ end }}{{ or .metadata.labels.clusterId .name }}"
+
+                  - git:
+                      repoURL: https://github.com/max06/deployments
+                      revision: HEAD
+                      directories:
+                        # global - on every cluster
+                        - path: "clusters/apps/*"
+                        # per clusterGroup - on every cluster in a group
+                        - path: "clusters/{{ .values.clusterGroup }}/apps/*"
+                        # on a specific single cluster, either grouped or ungrouped
+                        - path: "clusters/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*"
+                        - path: "clusters/{{ .values.clusterName }}/apps/*"
+                      values:
+                        appInstance: "{{- printf `{{ .path.basename }}` -}}"
+                        appInstancePath: "{{- printf `{{ .path.path }}` -}}"
+
+            - merge:
+                mergeKeys:
+                  - values
+                generators:
+                  - git:
+                      repoURL: https://github.com/max06/deployments
+                      revision: HEAD
+                      files:
+                        - path: "clusters/config.yaml" # 2. Universe globals
+                      values:
+                        selector: config
+
+                  - git:
+                      repoURL: https://github.com/max06/deployments
+                      revision: HEAD
+                      files:
+                        - path: "clusters/{{ .values.clusterGroup }}/config.yaml" # 3. Constellation globals
+                      values:
+                        selector: config
+
+                  - git:
+                      repoURL: https://github.com/max06/deployments
+                      revision: HEAD
+                      files:
+                        - path: "clusters/{{ .values.clusterName }}/config.yaml" # 4. Cluster globals
+                        - path: "clusters/{{ .values.clusterGroup }}/{{ .values.clusterName }}/config.yaml" # 4. Cluster globals
+                      values:
+                        selector: config
+
+                  - git:
+                      repoURL: https://github.com/max06/deployments
+                      revision: HEAD
+                      files:
+                        - path: "clusters/apps/{{ .values.appInstance }}/config.yaml" # 5. Universe-wide app settings
+                      values:
+                        selector: config
+
+                  - git:
+                      repoURL: https://github.com/max06/deployments
+                      revision: HEAD
+                      files:
+                        - path: "clusters/{{ .values.clusterGroup }}/apps/{{ .values.appInstance }}/config.yaml" # 6. Constellation-wide app settings
+                      values:
+                        selector: config
+
+                  - git:
+                      repoURL: https://github.com/max06/deployments
+                      revision: HEAD
+                      files:
+                        - path: "clusters/{{ .values.clusterName }}/apps/{{ .values.appInstance }}/config.yaml" # 7. Cluster-specific app settings
+                        - path: "clusters/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/{{ .values.appInstance }}/config.yaml" # 7. Cluster-specific app settings
+                      values:
+                        selector: config
+        selector:
+          matchExpressions:
+            - key: baseApp
+              operator: DoesNotExist
+    template:
+      metadata:
+        name: "{{ .values.clusterName }}-{{ .values.appInstance }}"
+      spec:
+        project: default
+        destination:
+          name: "{{ .values.clusterSlug }}"
+          namespace: "{{ or .namespace .values.appInstance }}"
+        syncPolicy:
+          syncOptions:
+            - CreateNamespace=true
+    templatePatch: |
+      spec:
+        sources:
+          - repoURL: https://github.com/max06/deployments
+            targetRevision: HEAD
+            path: "{{ .values.appInstancePath }}"
+
   root:
     namespace: argocd
     finalizers:
@@ -87,11 +199,15 @@ applicationsets:
                         - path: "clusters/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/{{ .values.appInstance }}/config.yaml" # 7. Cluster-specific app settings
                       values:
                         selector: config
+        selector:
+          matchExpressions:
+            - key: baseApp
+              operator: Exists
     template:
       metadata:
         name: "{{ .values.clusterName }}-{{ .values.appInstance }}"
       spec:
-        project: '{{ or .project "default" }}'
+        project: default # '{{ or .project "default" }}'
         destination:
           name: "{{ .values.clusterSlug }}"
           namespace: "{{ or .namespace .values.appInstance }}"
