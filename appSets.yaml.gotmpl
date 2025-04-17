@@ -220,7 +220,7 @@ applicationsets:
           {{`{{- if .baseApp }}`}}
           - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
             targetRevision: HEAD
-            path: {{`{{ .Values | get "baseDir" "baseDir missing" }}/apps/{{ .baseApp }}`}}
+            path: {{ `apps/{{ .baseApp }}` }}
           {{`{{- end }}`}}
           - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
             targetRevision: HEAD
