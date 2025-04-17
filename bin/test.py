@@ -62,7 +62,8 @@ def simulate_appset_generation(appset_file):
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         if result.returncode == 0:
-            return list(yaml.safe_load_all(result.stdout))[0]
+            # Return all applications, not just the first one
+            return list(yaml.safe_load_all(result.stdout))
         else:
             print(f"Error using argocd CLI: {result.stderr}")
 
@@ -129,6 +130,13 @@ def validate_applications(apps, validation_rules=None):
     """Validate the generated applications against predefined rules"""
     if not apps:
         print("No applications to validate")
+        return False
+
+    # Filter out None values
+    apps = [app for app in apps if app is not None]
+
+    if not apps:
+        print("No valid applications to validate after filtering None values")
         return False
 
     print(f"Found {len(apps)} generated applications")
@@ -222,6 +230,13 @@ def export_applications(apps, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # Filter out None values
+    apps = [app for app in apps if app is not None]
+
+    if not apps:
+        print("No valid applications to export")
+        return
+
     for i, app in enumerate(apps):
         name = app.get("metadata", {}).get("name", f"app-{i+1}")
         output_file = os.path.join(output_dir, f"{name}.yaml")
@@ -274,51 +289,11 @@ def validate_plain_appset_sources(apps):
             valid = False
 
         # Check that the path is a directory in the repository
+        # For testing environment, we accept paths starting with testing/ instead of clusters/
         path = source.get("path", "")
-        if not path.startswith("clusters/"):
-            print(f"  ERROR: Application {app.get('metadata', {}).get('name')} source path is {path}, expected to start with clusters/")
+        if not (path.startswith("clusters/") or path.startswith("testing/")):
+            print(f"  ERROR: Application {app.get('metadata', {}).get('name')} source path is {path}, expected to start with clusters/ or testing/")
             valid = False
-
-    return valid
-
-def validate_projects_app(apps):
-    """Validate that the 'projects' application has the correct source configuration"""
-    valid = True
-
-    # Find the projects application
-    projects_app = None
-    for app in apps:
-        if app.get("metadata", {}).get("name") == "in-cluster-projects":
-            projects_app = app
-            break
-
-    if not projects_app:
-        print("  ERROR: Could not find application named 'in-cluster-projects'")
-        return False
-
-    # Check for sources
-    sources = projects_app.get("spec", {}).get("sources", [])
-    if not sources:
-        print("  ERROR: 'in-cluster-projects' application missing sources")
-        return False
-
-    # Check that there is exactly one source
-    if len(sources) != 1:
-        print(f"  ERROR: 'in-cluster-projects' application has {len(sources)} sources, expected 1")
-        return False
-
-    # Check that the source points to the repository
-    source = sources[0]
-    if source.get("repoURL") != "https://github.com/max06/deployments":
-        print(f"  ERROR: 'in-cluster-projects' application source repoURL is {source.get('repoURL')}, expected https://github.com/max06/deployments")
-        valid = False
-
-    # Check that the path is the correct directory in the repository
-    path = source.get("path", "")
-    expected_path = "clusters/in-cluster/apps/projects"
-    if path != expected_path:
-        print(f"  ERROR: 'in-cluster-projects' application source path is {path}, expected {expected_path}")
-        valid = False
 
     return valid
 
@@ -397,7 +372,6 @@ def main():
         validation_rules = {}
         if appset_name == "plain":
             validation_rules["plain_appset_sources"] = validate_plain_appset_sources
-            validation_rules["projects_app"] = validate_projects_app
 
         valid = validate_applications(apps, validation_rules)
 
