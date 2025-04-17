@@ -4,7 +4,7 @@ applicationsets:
     namespace: argocd
     finalizers:
       - resources-finalizer.argocd.argoproj.io
-    goTemplate: false
+    goTemplate: true
     goTemplateOptions: ["missingkey=invalid"]
     applyNestedSelectors: true
 
@@ -33,8 +33,8 @@ applicationsets:
                         - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*`}}"
                         - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterName }}/apps/*`}}"
                       values:
-                        appInstance: "{{`{{- printf '{{ .path.basename }}' -}}`}}"
-                        appInstancePath: "{{`{{- printf '{{ .path.path }}' -}}`}}"
+                        appInstance: '{{ printf "%s" "{{- printf `{{ .path.basename }}` -}}" }}'
+                        appInstancePath: '{{ printf "%s" "{{- printf `{{ .path.path }}` -}}" }}'
 
             - merge:
                 mergeKeys:
@@ -115,7 +115,7 @@ applicationsets:
     namespace: argocd
     finalizers:
       - resources-finalizer.argocd.argoproj.io
-    goTemplate: false
+    goTemplate: true
     goTemplateOptions: ["missingkey=invalid"]
 
     generators:
@@ -143,8 +143,8 @@ applicationsets:
                         - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*`}}"
                         - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterName }}/apps/*`}}"
                       values:
-                        appInstance: "{{`{{- printf '{{ .path.basename }}' -}}`}}"
-                        appInstancePath: "{{`{{- printf '{{ .path.path }}' -}}`}}"
+                        appInstance: '{{ printf "%s" "{{- printf `{{ .path.basename }}` -}}" }}'
+                        appInstancePath: '{{ printf "%s" "{{- printf `{{ .path.path }}` -}}" }}'
 
             - merge:
                 mergeKeys:
