@@ -14,6 +14,8 @@ The main entrypoint is [helmfile.yaml](mdc:helmfile.yaml). It's used for bootstr
 
 The `clusters/` directory contains a specific directory structure to define clusters or constellations (logical groups of clusters with similar tasks, deployments or just to show a common owner) with clusters.
 
+The `testing/` directory follows the exact same schema, but is only used for testing.
+
 Examples:
 
 - `clusters/in-cluster` is the upstream or management cluster. It's running rancher (for deploying and managing downstream kubernetes clusters) and argo-cd (managing all deployments on all clusters). 
