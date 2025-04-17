@@ -3,4 +3,4 @@ chartstorage
 switch-config.yaml
 charts/
 dist/
-test-results/
+testing-output/

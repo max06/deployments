@@ -8,18 +8,16 @@ import argparse
 import tempfile
 from pathlib import Path
 
-def extract_appset_from_helm(chart_path, values_file=None, release_name="test-release"):
-    """Extract ApplicationSet definition from a Helm chart"""
+def extract_appset_from_helmfile(helmfile_path, environment="testing"):
+    """Extract ApplicationSet definition from a helmfile template command"""
 
-    cmd = ["helm", "template", release_name, chart_path]
-    if values_file:
-        cmd.extend(["-f", values_file])
+    cmd = ["helmfile", "template", "--environment", environment]
 
     print(f"Executing: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
-        print(f"Error rendering Helm chart: {result.stderr}")
+        print(f"Error rendering helmfile: {result.stderr}")
         sys.exit(1)
 
     # Parse the output and find the ApplicationSet resources
@@ -27,7 +25,7 @@ def extract_appset_from_helm(chart_path, values_file=None, release_name="test-re
     appsets = [m for m in manifests if m and m.get("kind") == "ApplicationSet"]
 
     if not appsets:
-        print("No ApplicationSet resources found in the rendered Helm chart")
+        print("No ApplicationSet resources found in the rendered helmfile")
         sys.exit(1)
 
     print(f"Found {len(appsets)} ApplicationSet resources")
@@ -38,49 +36,6 @@ def save_appset_to_file(appset, output_file):
     with open(output_file, "w") as f:
         yaml.dump(appset, f)
     print(f"Saved ApplicationSet to {output_file}")
-
-def extract_appset_from_values(values_yaml):
-    """Extract ApplicationSet from a Helm values.yaml structure"""
-    data = yaml.safe_load(values_yaml)
-    appsets = []
-
-    # Handle the specific format from the input
-    if "applicationsets" in data:
-        for appset_name, appset_data in data["applicationsets"].items():
-            # Create a proper ApplicationSet structure
-            appset = {
-                "apiVersion": "argoproj.io/v1alpha1",
-                "kind": "ApplicationSet",
-                "metadata": {
-                    "name": appset_name,
-                    "namespace": appset_data.get("namespace", "argocd")
-                },
-                "spec": {
-                    "generators": appset_data.get("generators", []),
-                    "template": appset_data.get("template", {}),
-                    "templatePatch": appset_data.get("templatePatch", {}),
-                    "goTemplate": appset_data.get("goTemplate", False)
-                }
-            }
-
-            # Add optional fields if present
-            if "goTemplateOptions" in appset_data:
-                appset["spec"]["goTemplateOptions"] = appset_data["goTemplateOptions"]
-
-            if "syncPolicy" in appset_data:
-                appset["spec"]["syncPolicy"] = appset_data["syncPolicy"]
-
-            appsets.append(appset)
-
-        if not appsets:
-            print("No ApplicationSet resources found in the values format")
-            return None
-
-        print(f"Found {len(appsets)} ApplicationSet resources in values format")
-        return appsets
-
-    print("Could not extract ApplicationSet from values format")
-    return None
 
 def simulate_appset_generation(appset_file):
     """Simulate the ApplicationSet controller's behavior to generate Applications"""
@@ -212,6 +167,45 @@ def validate_applications(apps, validation_rules=None):
 
     return valid
 
+def validate_appset_structure(appset):
+    """Validate the ApplicationSet structure itself"""
+    valid = True
+
+    # Check basic structure
+    if appset.get("apiVersion") != "argoproj.io/v1alpha1":
+        print(f"  ERROR: ApplicationSet has incorrect apiVersion: {appset.get('apiVersion')}")
+        valid = False
+
+    if appset.get("kind") != "ApplicationSet":
+        print(f"  ERROR: ApplicationSet has incorrect kind: {appset.get('kind')}")
+        valid = False
+
+    # Check metadata
+    if not appset.get("metadata"):
+        print("  ERROR: ApplicationSet missing metadata section")
+        valid = False
+    else:
+        if not appset["metadata"].get("name"):
+            print("  ERROR: ApplicationSet missing name in metadata")
+            valid = False
+
+    # Check spec
+    if not appset.get("spec"):
+        print("  ERROR: ApplicationSet missing spec section")
+        valid = False
+    else:
+        # Check generators
+        if not appset["spec"].get("generators"):
+            print("  ERROR: ApplicationSet missing generators in spec")
+            valid = False
+
+        # Check template
+        if not appset["spec"].get("template"):
+            print("  ERROR: ApplicationSet missing template in spec")
+            valid = False
+
+    return valid
+
 def server_side_dry_run(appset_file):
     """Perform a server-side dry-run of the ApplicationSet"""
     cmd = ["kubectl", "apply", "-f", appset_file, "--server-dry-run=true", "-o", "yaml"]
@@ -236,6 +230,20 @@ def export_applications(apps, output_dir):
             yaml.dump(app, f)
 
         print(f"Exported application to {output_file}")
+
+def export_appset(appset, output_dir):
+    """Export an ApplicationSet to a YAML file"""
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    name = appset.get("metadata", {}).get("name", "unknown-appset")
+    output_file = os.path.join(output_dir, f"{name}.yaml")
+
+    with open(output_file, "w") as f:
+        yaml.dump(appset, f)
+
+    print(f"Exported ApplicationSet to {output_file}")
+    return output_file
 
 def validate_plain_appset_sources(apps):
     """Validate that the plain ApplicationSet generates one sources entry pointing to the directory in the repo"""
@@ -317,17 +325,8 @@ def validate_projects_app(apps):
 def main():
     parser = argparse.ArgumentParser(description="Test ArgoCD ApplicationSet generator combinations and templates")
 
-    # Input options
-    input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument("--helm-chart", help="Path to Helm chart containing ApplicationSet")
-    input_group.add_argument("--values-file", help="Path to values.yaml file with ApplicationSet configuration")
-    input_group.add_argument("--appset-file", help="Path to ApplicationSet YAML file")
-
     # Optional arguments
-    parser.add_argument("--release-name", default="test-release", help="Release name for Helm template (default: test-release)")
-    parser.add_argument("--output-dir", default="./generated-apps", help="Directory to export generated applications (default: ./generated-apps)")
-    parser.add_argument("--keep-appset", action="store_true", help="Keep the extracted ApplicationSet file")
-    parser.add_argument("--appset-name", help="Specific ApplicationSet name to test (if not provided, all will be tested)")
+    parser.add_argument("--output-dir", default="./testing-output", help="Directory to export generated applications (default: ./testing-output)")
 
     args = parser.parse_args()
 
@@ -347,63 +346,39 @@ def main():
     appset_files = []
     temp_files = []  # Keep track of temporary files to prevent them from being garbage collected
 
-    if args.helm_chart:
-        values_file = args.values_file if args.values_file else None
-        appsets = extract_appset_from_helm(args.helm_chart, values_file, args.release_name)
-        if not appsets:
-            sys.exit(1)
+    # Use helmfile template to generate ApplicationSet manifests
+    appsets = extract_appset_from_helmfile("helmfile.yaml", "testing")
+    if not appsets:
+        sys.exit(1)
 
-        # Filter by name if specified
-        if args.appset_name:
-            appsets = [appset for appset in appsets if appset.get("metadata", {}).get("name") == args.appset_name]
-            if not appsets:
-                print(f"No ApplicationSet named '{args.appset_name}' found")
-                sys.exit(1)
+    # Create a directory for ApplicationSets in the output directory
+    appset_output_dir = os.path.join(args.output_dir, "applicationsets") if args.output_dir else None
+    if appset_output_dir:
+        os.makedirs(appset_output_dir)
+        print(f"Created ApplicationSet output directory: {appset_output_dir}")
 
-        # Create temporary files for each ApplicationSet
-        for appset in appsets:
-            tmp = tempfile.NamedTemporaryFile(suffix=".yaml", delete=not args.keep_appset)
-            temp_files.append(tmp)  # Keep reference to prevent garbage collection
-            appset_file = tmp.name
-            save_appset_to_file(appset, appset_file)
-            appset_files.append((appset.get("metadata", {}).get("name", "unknown"), appset_file))
+    # Create temporary files for each ApplicationSet and save them to the output directory
+    for appset in appsets:
+        # Save to temporary file for processing
+        tmp = tempfile.NamedTemporaryFile(suffix=".yaml", delete=True)
+        temp_files.append(tmp)  # Keep reference to prevent garbage collection
+        appset_file = tmp.name
+        save_appset_to_file(appset, appset_file)
 
-    elif args.values_file:
-        with open(args.values_file, 'r') as f:
-            appsets = extract_appset_from_values(f.read())
-            if not appsets:
-                sys.exit(1)
+        # Save to output directory
+        if appset_output_dir:
+            export_appset(appset, appset_output_dir)
 
-            # Filter by name if specified
-            if args.appset_name:
-                appsets = [appset for appset in appsets if appset.get("metadata", {}).get("name") == args.appset_name]
-                if not appsets:
-                    print(f"No ApplicationSet named '{args.appset_name}' found")
-                    sys.exit(1)
-
-            # Create temporary files for each ApplicationSet
-            for appset in appsets:
-                tmp = tempfile.NamedTemporaryFile(suffix=".yaml", delete=not args.keep_appset)
-                temp_files.append(tmp)  # Keep reference to prevent garbage collection
-                appset_file = tmp.name
-                save_appset_to_file(appset, appset_file)
-                appset_files.append((appset.get("metadata", {}).get("name", "unknown"), appset_file))
-
-    elif args.appset_file:
-        # For a single ApplicationSet file, just use it directly
-        appset_files.append(("single", args.appset_file))
-
-        # If appset_name is specified, check if it matches
-        if args.appset_name:
-            with open(args.appset_file, 'r') as f:
-                appset = yaml.safe_load(f)
-                if appset.get("metadata", {}).get("name") != args.appset_name:
-                    print(f"ApplicationSet in file '{args.appset_file}' does not match requested name '{args.appset_name}'")
-                    sys.exit(1)
+        appset_files.append((appset.get("metadata", {}).get("name", "unknown"), appset_file, appset))
 
     # Process each ApplicationSet
-    for appset_name, appset_file in appset_files:
+    for appset_name, appset_file, appset in appset_files:
         print(f"\n=== Processing ApplicationSet: {appset_name} ===")
+
+        # Validate ApplicationSet structure
+        print(f"\n=== Validating ApplicationSet structure for {appset_name} ===")
+        structure_valid = validate_appset_structure(appset)
+        print(f"Structure validation: {'PASSED' if structure_valid else 'FAILED'}")
 
         # Generate applications
         print(f"\n=== Generating applications for {appset_name} ===")
@@ -432,15 +407,13 @@ def main():
             print(f"\n=== Exporting applications for {appset_name} ===")
             export_applications(apps, appset_output_dir)
 
-        if args.keep_appset:
-            print(f"\nApplicationSet file for {appset_name} kept at: {appset_file}")
-
         print(f"\n=== Summary for {appset_name} ===")
+        print(f"Structure validation: {'PASSED' if structure_valid else 'FAILED'}")
         print(f"Applications generated: {len(apps)}")
-        print(f"Validation: {'PASSED' if valid else 'FAILED'}")
+        print(f"Application validation: {'PASSED' if valid else 'FAILED'}")
 
         if not valid:
-            print(f"Validation failed for ApplicationSet {appset_name}")
+            print(f"Application validation failed for ApplicationSet {appset_name}")
             # Continue with other ApplicationSets even if one fails
 
     # Final summary

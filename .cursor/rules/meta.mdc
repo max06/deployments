@@ -10,7 +10,7 @@ This project aims to provide a gitops-style approach to argo-cd deployments.
 
 The main entrypoint is [helmfile.yaml](mdc:helmfile.yaml). It's used for bootstrapping new deployments for the very first time, as well as for updating the applicationSets in argo-cd handling all other deployments afterwards.
 
-[root.yaml](mdc:clusters/root.yaml) is used to define all applicationSets that are used to generate the actual argo-cd apps. 
+[appSets.yaml.gotmpl](mdc:appSets.yaml.gotmpl) is used to define all applicationSets that are used to generate the actual argo-cd apps. 
 
 The `clusters/` directory contains a specific directory structure to define clusters or constellations (logical groups of clusters with similar tasks, deployments or just to show a common owner) with clusters.
 

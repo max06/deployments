@@ -1,3 +1,15 @@
+environments:
+  default:
+    values:
+      - repoUrl: https://github.com/max06/deployments
+      - baseDir: clusters
+  testing:
+    values:
+      - repoUrl: https://github.com/max06/deployments
+      - baseDir: testing
+
+---
+
 repositories:
   - name: argo
     url: https://argoproj.github.io/argo-helm
@@ -7,6 +19,7 @@ releases:
     namespace: argocd
     chart: argo/argo-cd
     version: 7.8.13
+    installed: {{ eq .Environment.Name "default" | toYaml }}
     values:
       - apps/argocd/values.yaml
     strategicMergePatches:
@@ -26,4 +39,5 @@ releases:
     namespace: argocd
     chart: argo/argocd-apps
     values:
-      - clusters/root.yaml
+      - appSets.yaml.gotmpl
+      - repoUrl: https://github.com/max06/deployments
