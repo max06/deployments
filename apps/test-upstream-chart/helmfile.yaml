@@ -1,0 +1,9 @@
+---
+repositories:
+  - name: helm
+    url: https://helm.github.io/examples
+
+releases:
+  - name: hello-world
+    chart: helm/hello-world
+    version: 0.1.0
