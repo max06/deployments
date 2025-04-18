@@ -111,6 +111,78 @@ applicationsets:
             targetRevision: HEAD
             path: "{{`{{ .values.appInstancePath }}`}}"
 
+  withConfig:
+    namespace: argocd
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+    goTemplate: true
+    goTemplateOptions: ["missingkey=invalid"]
+
+    generators:
+      - matrix:
+          generators:
+            # Original app deployment generators
+            - matrix:
+                generators:
+                  - clusters:
+                      selectors:
+                      values:
+                        clusterGroup: "{{`{{ or .metadata.labels.clusterGroup nil }}`}}"
+                        clusterName: "{{`{{ or .metadata.labels.clusterId .name }}`}}"
+                        clusterSlug: "{{`{{ if .metadata.labels.clusterGroup }}{{ .metadata.labels.clusterGroup }}-{{ end }}{{ or .metadata.labels.clusterId .name }}`}}"
+
+                  - git:
+                      repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
+                      revision: HEAD
+                      files:
+                        # global - on every cluster
+                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}/apps/*/config.yaml"
+                        # per clusterGroup - on every cluster in a group
+                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/apps/*/config.yaml`}}"
+                        # on a specific single cluster, either grouped or ungrouped
+                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*/config.yaml`}}"
+                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterName }}/apps/*/config.yaml`}}"
+                      values:
+                        appInstance: '{{ printf "%s" "{{- printf `{{ .path.basename }}` -}}" }}'
+                        appInstancePath: '{{ printf "%s" "{{- printf `{{ .path.path }}` -}}" }}'
+                        baseApp: '{{ printf "%s" "{{- printf `{{ .baseApp }}` -}}" }}'
+
+            - git:
+                repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
+                revision: HEAD
+                files:
+                  - path: "apps/{{ `{{ .baseApp }}` }}/helmfile.yaml"
+                pathParamPrefix: "appSettings"
+        selector:
+          matchExpressions:
+            - key: baseApp
+              operator: Exists
+    template:
+      metadata:
+        name: "{{`{{ .values.clusterName }}-{{ .values.appInstance }}`}}"
+        labels:
+          debug: "{{`{{ . | toYaml }}`}}"
+      spec:
+        project: default # {{"{{ or .project \"default\" }}"}}
+        destination:
+          name: "{{`{{ .values.clusterSlug }}`}}"
+          namespace: "{{`{{ or .namespace .values.appInstance }}`}}"
+        syncPolicy:
+          syncOptions:
+            - CreateNamespace=true
+    templatePatch: |
+      spec:
+        sources:
+          {{`{{- if .baseApp }}`}}
+          - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
+            targetRevision: HEAD
+            path: {{ `apps/{{ .baseApp }}` }}
+          {{`{{- end }}`}}
+          - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
+            targetRevision: HEAD
+            path: {{`{{ .values.appInstancePath }}`}}
+
+
   root:
     namespace: argocd
     finalizers:

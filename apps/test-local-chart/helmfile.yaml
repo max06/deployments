@@ -1,4 +1,4 @@
 ---
 releases:
-  - name: kubevirt-operator
+  - name: test-local-chart
     chart: ./
