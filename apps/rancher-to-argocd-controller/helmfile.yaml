@@ -1,0 +1,4 @@
+---
+releases:
+  - name: rancher-to-argocd-controller
+    chart: ./
