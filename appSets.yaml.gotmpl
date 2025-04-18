@@ -160,8 +160,8 @@ applicationsets:
     template:
       metadata:
         name: "{{`{{ .values.clusterName }}-{{ .values.appInstance }}`}}"
-        labels:
-          debug: "{{`{{ . | toYaml }}`}}"
+        # labels:
+        #   debug: "{{`{{ . | toYaml }}`}}"
       spec:
         project: default # {{"{{ or .project \"default\" }}"}}
         destination:
