@@ -162,6 +162,7 @@ applicationsets:
         name: "{{`{{ .values.clusterName }}-{{ .values.appInstance }}`}}"
         labels:
           debug: "{{`{{ . | toYaml }}`}}"
+          baseApp: "{{`{{ .baseApp }}`}}"
       spec:
         project: default # {{"{{ or .project \"default\" }}"}}
         destination:
@@ -173,126 +174,31 @@ applicationsets:
     templatePatch: |
       spec:
         sources:
-          {{`{{- if .baseApp }}`}}
+          # If the app is using a helmfile.yaml containing upstream charts, we need to add the upstream source
+          {{`{{- if and (eq .appSettings.path.filename "helmfile.yaml") .releases }}`}}
+          {{`{{- range $release := .releases }}`}}
+          {{`{{- if eq $release.chart "./" }}`}}
+          # Local chart source
           - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
             targetRevision: HEAD
-            path: {{ `apps/{{ .baseApp }}` }}
+            path: "{{ `apps/{{ $.baseApp }}` }}"
+          {{`{{- else }}`}}
+          # Upstream chart source
+          {{`{{- $repoName := (index (splitList "/" $release.chart) 0) }}`}}
+          {{`{{- $repoURL := "" }}`}}
+          {{`{{- range $repo := $.repositories }}`}}
+          {{`{{- if eq $repo.name $repoName }}`}}
+          {{`{{- $repoURL = $repo.url }}`}}
           {{`{{- end }}`}}
-          - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
-            targetRevision: HEAD
-            path: {{`{{ .values.appInstancePath }}`}}
-
-
-  root:
-    namespace: argocd
-    finalizers:
-      - resources-finalizer.argocd.argoproj.io
-    goTemplate: true
-    goTemplateOptions: ["missingkey=invalid"]
-
-    generators:
-      - matrix:
-          generators:
-            # Original app deployment generators
-            - matrix:
-                generators:
-                  - clusters:
-                      selectors:
-                      values:
-                        clusterGroup: "{{`{{ or .metadata.labels.clusterGroup nil }}`}}"
-                        clusterName: "{{`{{ or .metadata.labels.clusterId .name }}`}}"
-                        clusterSlug: "{{`{{ if .metadata.labels.clusterGroup }}{{ .metadata.labels.clusterGroup }}-{{ end }}{{ or .metadata.labels.clusterId .name }}`}}"
-
-                  - git:
-                      repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
-                      revision: HEAD
-                      directories:
-                        # global - on every cluster
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}/apps/*"
-                        # per clusterGroup - on every cluster in a group
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/apps/*`}}"
-                        # on a specific single cluster, either grouped or ungrouped
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*`}}"
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterName }}/apps/*`}}"
-                      values:
-                        appInstance: '{{ printf "%s" "{{- printf `{{ .path.basename }}` -}}" }}'
-                        appInstancePath: '{{ printf "%s" "{{- printf `{{ .path.path }}` -}}" }}'
-
-            - merge:
-                mergeKeys:
-                  - values
-                generators:
-                  - git:
-                      repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
-                      revision: HEAD
-                      files:
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}/config.yaml" # 2. Universe globals
-                      values:
-                        selector: config
-
-                  - git:
-                      repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
-                      revision: HEAD
-                      files:
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/config.yaml`}}" # 3. Constellation globals
-                      values:
-                        selector: config
-
-                  - git:
-                      repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
-                      revision: HEAD
-                      files:
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterName }}/config.yaml`}}" # 4. Cluster globals
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/{{ .values.clusterName }}/config.yaml`}}" # 4. Cluster globals
-                      values:
-                        selector: config
-
-                  - git:
-                      repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
-                      revision: HEAD
-                      files:
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/apps/{{ .values.appInstance }}/config.yaml`}}" # 5. Universe-wide app settings
-                      values:
-                        selector: config
-
-                  - git:
-                      repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
-                      revision: HEAD
-                      files:
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/apps/{{ .values.appInstance }}/config.yaml`}}" # 6. Constellation-wide app settings
-                      values:
-                        selector: config
-
-                  - git:
-                      repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
-                      revision: HEAD
-                      files:
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterName }}/apps/{{ .values.appInstance }}/config.yaml`}}" # 7. Cluster-specific app settings
-                        - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/{{ .values.appInstance }}/config.yaml`}}" # 7. Cluster-specific app settings
-                      values:
-                        selector: config
-        selector:
-          matchExpressions:
-            - key: baseApp
-              operator: Exists
-    template:
-      metadata:
-        name: "{{`{{ .values.clusterName }}-{{ .values.appInstance }}`}}"
-      spec:
-        project: default # {{"{{ or .project \"default\" }}"}}
-        destination:
-          name: "{{`{{ .values.clusterSlug }}`}}"
-          namespace: "{{`{{ or .namespace .values.appInstance }}`}}"
-        syncPolicy:
-          syncOptions:
-            - CreateNamespace=true
-    templatePatch: |
-      spec:
-        sources:
-          {{`{{- if .baseApp }}`}}
-          - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
-            targetRevision: HEAD
-            path: {{ `apps/{{ .baseApp }}` }}
+          {{`{{- end }}`}}
+          - repoURL: {{`{{ $repoURL }}`}}
+            targetRevision: {{`{{ $release.version }}`}}
+            chart: {{`{{ $release.chart }}`}}
+            helm:
+              valueFiles:
+                - {{`{{ $.values.appInstancePath }}/values.yaml`}}
+          {{`{{- end }}`}}
+          {{`{{- end }}`}}
           {{`{{- end }}`}}
           - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
             targetRevision: HEAD

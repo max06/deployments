@@ -55,7 +55,25 @@ class ApplicationSetGenerator:
             print(f"Error generating applications: {result.stderr}")
             return []
 
-        return list(yaml.safe_load_all(result.stdout))
+        # Parse all YAML documents from the output
+        yaml_docs = list(yaml.safe_load_all(result.stdout))
+
+        # Filter out None values and ensure all items are dictionaries
+        valid_apps = []
+        for doc in yaml_docs:
+            if doc is None:
+                continue
+
+            # If the document is a list, extract each item
+            if isinstance(doc, list):
+                for item in doc:
+                    if item is not None and isinstance(item, dict):
+                        valid_apps.append(item)
+            # If the document is a dictionary, add it directly
+            elif isinstance(doc, dict):
+                valid_apps.append(doc)
+
+        return valid_apps
 
 class ApplicationValidator:
     """Handles validation of Applications and ApplicationSets."""
@@ -63,6 +81,7 @@ class ApplicationValidator:
     @staticmethod
     def validate_applications(apps: List[Dict[str, Any]], validation_rules: Optional[Dict[str, Callable]] = None) -> bool:
         """Validate the generated applications against predefined rules."""
+        # Filter out None values and ensure all items are dictionaries
         apps = [app for app in apps if app is not None]
         if not apps:
             print("No valid applications to validate")
@@ -72,6 +91,11 @@ class ApplicationValidator:
         valid = True
 
         for i, app in enumerate(apps):
+            # Check if app is a list and handle it appropriately
+            if isinstance(app, list):
+                print(f"Application {i+1}: WARNING - Found a list instead of a dictionary, skipping validation")
+                continue
+
             print(f"Application {i+1}: {app.get('metadata', {}).get('name', 'unknown')}")
             valid = valid and ApplicationValidator._validate_single_application(app, i)
 
@@ -153,6 +177,11 @@ class ApplicationExporter:
             return
 
         for i, app in enumerate(apps):
+            # Skip if app is a list instead of a dictionary
+            if isinstance(app, list):
+                print(f"Skipping export of application {i+1}: Found a list instead of a dictionary")
+                continue
+
             name = app.get("metadata", {}).get("name", f"app-{i+1}")
             output_file = os.path.join(output_dir, f"{name}.yaml")
             with open(output_file, "w") as f:
@@ -179,6 +208,10 @@ def validate_plain_appset_sources(apps: List[Dict[str, Any]]) -> bool:
     valid = True
 
     for app in apps:
+        # Skip if app is a list instead of a dictionary
+        if isinstance(app, list):
+            continue
+
         if not app.get("metadata", {}).get("name", "").startswith("in-cluster-"):
             continue
 
