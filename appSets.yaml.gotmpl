@@ -8,6 +8,9 @@ applicationsets:
     goTemplateOptions: ["missingkey=invalid"]
     applyNestedSelectors: true
 
+    syncPolicy:
+      applicationsSync: create-update
+
     generators:
       - matrix:
           generators:
@@ -117,6 +120,9 @@ applicationsets:
       - resources-finalizer.argocd.argoproj.io
     goTemplate: true
     goTemplateOptions: ["missingkey=invalid"]
+
+    syncPolicy:
+      applicationsSync: create-update
 
     generators:
       - matrix:
