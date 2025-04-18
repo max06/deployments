@@ -111,7 +111,7 @@ applicationsets:
             targetRevision: HEAD
             path: "{{`{{ .values.appInstancePath }}`}}"
 
-  withConfig:
+  with-config:
     namespace: argocd
     finalizers:
       - resources-finalizer.argocd.argoproj.io
@@ -162,7 +162,6 @@ applicationsets:
         name: "{{`{{ .values.clusterName }}-{{ .values.appInstance }}`}}"
         labels:
           debug: "{{`{{ . | toYaml }}`}}"
-          baseApp: "{{`{{ .baseApp }}`}}"
       spec:
         project: default # {{"{{ or .project \"default\" }}"}}
         destination:
