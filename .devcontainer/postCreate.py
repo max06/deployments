@@ -122,6 +122,12 @@ def main():
         "install vendir", "sudo eget carvel-dev/vendir --to /usr/local/bin/vendir"
     )
     runner.add_task(
+        "install sops", "sudo eget getsops/sops -a '^sbom' --to /usr/local/bin/sops"
+    )
+    runner.add_task(
+        "install age", "sudo eget FiloSottile/age --to /usr/local/bin/age"
+    )
+    runner.add_task(
         "install helmfile", [
             "sudo eget helmfile/helmfile --to /usr/local/bin/helmfile", "helmfile init --force"]
     )
