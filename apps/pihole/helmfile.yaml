@@ -15,3 +15,7 @@ releases:
           mixedService: true
           annotations:
             "lbipam.cilium.io/ips": "192.168.30.241"
+        doh:
+          enabled: true
+        extraEnvVars:
+          DNSMASQ_LISTENING: all
