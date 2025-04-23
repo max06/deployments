@@ -1,0 +1,8 @@
+repositories:
+  - name: pihole
+    url: https://mojo2600.github.io/pihole-kubernetes/
+
+releases:
+  - name: pihole
+    chart: pihole/pihole
+    version: 2.29.1
