@@ -20,3 +20,5 @@ releases:
           enabled: true
         extraEnvVars:
           FTLCONF_dns_listeningMode: all
+        persistentVolumeClaim:
+          enabled: true
