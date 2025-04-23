@@ -5,7 +5,7 @@ repositories:
 releases:
   - name: argocd
     chart: argo-helm/argo-cd
-    version: 7.8.26
+    version: 7.8.28
     namespace: argocd
     values:
       - global:
