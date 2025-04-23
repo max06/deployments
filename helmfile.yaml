@@ -9,12 +9,11 @@ environments:
       - baseDir: testing
 ---
 helmfiles:
-  - path: clusters/in-cluster/apps/argocd/helmfile.yaml
+  - path: '{{ if eq .Environment.Name "default" }}clusters{{ else }}testing/{{ end }}/in-cluster/apps/argocd/helmfile.yaml'
 
 repositories:
   - name: argo
     url: https://argoproj.github.io/argo-helm
-
 releases:
   - name: root
     namespace: argocd

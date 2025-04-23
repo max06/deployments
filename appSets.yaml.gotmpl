@@ -9,7 +9,7 @@ applicationsets:
     applyNestedSelectors: true
 
     syncPolicy:
-      applicationsSync: create-update
+      applicationsSync: create-only
 
     generators:
       - matrix:
@@ -122,7 +122,7 @@ applicationsets:
     goTemplateOptions: ["missingkey=invalid"]
 
     syncPolicy:
-      applicationsSync: create-update
+      applicationsSync: create-only
 
     generators:
       - matrix:
@@ -205,6 +205,63 @@ applicationsets:
           {{`{{- end }}`}}
           {{`{{- end }}`}}
           {{`{{- end }}`}}
+          - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
+            targetRevision: HEAD
+            path: {{`{{ .values.appInstancePath }}`}}
+
+  with-helmfile:
+    namespace: argocd
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+    goTemplate: true
+    goTemplateOptions: ["missingkey=invalid"]
+
+    syncPolicy:
+      applicationsSync: create-only
+
+    generators:
+
+      - matrix:
+          generators:
+            - clusters:
+                selectors:
+                values:
+                  clusterGroup: "{{`{{ or .metadata.labels.clusterGroup nil }}`}}"
+                  clusterName: "{{`{{ or .metadata.labels.clusterId .name }}`}}"
+                  clusterSlug: "{{`{{ if .metadata.labels.clusterGroup }}{{ .metadata.labels.clusterGroup }}-{{ end }}{{ or .metadata.labels.clusterId .name }}`}}"
+
+            - git:
+                repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
+                revision: HEAD
+                files:
+                  # global - on every cluster
+                  - path: "{{ .Values | get "baseDir" "baseDir missing" }}/apps/*/helmfile.yaml"
+                  # per clusterGroup - on every cluster in a group
+                  - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/apps/*/helmfile.yaml`}}"
+                  # on a specific single cluster, either grouped or ungrouped
+                  - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*/helmfile.yaml`}}"
+                  - path: "{{ .Values | get "baseDir" "baseDir missing" }}{{`/{{ .values.clusterName }}/apps/*/helmfile.yaml`}}"
+                values:
+                  appInstance: '{{ printf "%s" "{{- printf `{{ .path.basename }}` -}}" }}'
+                  appInstancePath: '{{ printf "%s" "{{- printf `{{ .path.path }}` -}}" }}'
+                  baseApp: '{{ printf "%s" "{{- printf `{{ .baseApp }}` -}}" }}'
+
+    template:
+      metadata:
+        name: "{{`{{ .values.clusterName }}-{{ .values.appInstance }}`}}"
+        # labels:
+        #   debug: "{{`{{ . | toYaml }}`}}"
+      spec:
+        project: default # {{"{{ or .project \"default\" }}"}}
+        destination:
+          name: "{{`{{ .values.clusterSlug }}`}}"
+          namespace: "{{`{{ or .namespace .values.appInstance }}`}}"
+        syncPolicy:
+          syncOptions:
+            - CreateNamespace=true
+    templatePatch: |
+      spec:
+        sources:
           - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
             targetRevision: HEAD
             path: {{`{{ .values.appInstancePath }}`}}

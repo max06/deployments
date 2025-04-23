@@ -1,0 +1,4 @@
+# Available values:
+
+# argocd; global.domain
+primary_domain: some-domain.com
