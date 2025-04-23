@@ -1,41 +1,44 @@
 deployment:
-  replicas: 1
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 300m
-      memory: 256Mi
+  replicas: 2
+#   resources:
+#     requests:
+#       cpu: 100m
+#       memory: 128Mi
+#     limits:
+#       cpu: 300m
+#       memory: 256Mi
 
 ingressRoute:
   dashboard:
     enabled: true
 
-providers:
-  kubernetesCRD:
-    enabled: true
-  kubernetesIngress:
-    enabled: true
+# providers:
+#   kubernetesCRD:
+#     enabled: true
+#   kubernetesIngress:
+#     enabled: true
 
-ports:
-  web:
-    port: 80
-    expose: true
-    exposedPort: 80
-    protocol: TCP
-  websecure:
-    port: 443
-    expose: true
-    exposedPort: 443
-    protocol: TCP
+# ports:
+#   web:
+#     port: 80
+#     expose: true
+#     exposedPort: 80
+#     protocol: TCP
+#   websecure:
+#     port: 443
+#     expose: true
+#     exposedPort: 443
+#     protocol: TCP
 
 service:
   type: LoadBalancer
-
-securityContext:
-  capabilities:
-    drop: [ALL]
-  readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 65532
+  spec:
+    loadBalancerClass: io.cilium/l2-announcer
+  annotations:
+    "lbipam.cilium.io/ips": "192.168.30.240"
+# securityContext:
+#   capabilities:
+#     drop: [ALL]
+#   readOnlyRootFilesystem: true
+#   runAsNonRoot: true
+#   runAsUser: 65532
