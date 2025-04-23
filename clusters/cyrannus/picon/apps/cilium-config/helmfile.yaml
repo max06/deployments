@@ -16,3 +16,10 @@ releases:
             spec:
               blocks:
                 - cidr: "192.168.30.240/28"
+          - apiVersion: "cilium.io/v2alpha1"
+            kind: CiliumL2AnnouncementPolicy
+            metadata:
+              name: "internal-policy"
+            spec:
+              externalIPs: true
+              loadBalancerIPs: true
