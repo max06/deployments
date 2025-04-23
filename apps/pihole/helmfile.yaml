@@ -15,6 +15,7 @@ releases:
           mixedService: true
           annotations:
             "lbipam.cilium.io/ips": "192.168.30.241"
+          externalTrafficPolicy: Cluster
         doh:
           enabled: true
         extraEnvVars:
