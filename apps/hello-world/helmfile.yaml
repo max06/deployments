@@ -9,30 +9,29 @@ releases:
     chart: hello-world/hello-world
     version: 0.1.0
     namespace: hello-world
-    dependencies:
-      - chart: bedag/raw
-        alias: hello-world-ingress
-        version: 2.0.0
+
+  - name: hello-world-ingress
+    chart: bedag/raw
+    version: 2.0.0
     values:
-      - hello-world-ingress:
-          resources:
-            - apiVersion: v1
-              kind: Ingress
-              metadata:
-                name: hello-world
-              spec:
-                rules:
-                  - host: hello-world.internal
-                    http:
-                      paths:
-                        - path: /
-                          pathType: Prefix
-                          backend:
-                            service:
-                              name: hello-world
-                              port:
-                                number: 80
-                tls:
-                  - secretName: hello-world-tls
-                    hosts:
-                      - hello-world.internal
+      - resources:
+          - apiVersion: v1
+            kind: Ingress
+            metadata:
+              name: hello-world
+            spec:
+              rules:
+                - host: hello-world.internal
+                  http:
+                    paths:
+                      - path: /
+                        pathType: Prefix
+                        backend:
+                          service:
+                            name: hello-world
+                            port:
+                              number: 80
+              tls:
+                - secretName: hello-world-tls
+                  hosts:
+                    - hello-world.internal
