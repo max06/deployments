@@ -21,5 +21,4 @@ releases:
             metadata:
               name: "internal-policy"
             spec:
-              externalIPs: true
               loadBalancerIPs: true
