@@ -15,7 +15,7 @@ releases:
     version: 2.0.0
     values:
       - resources:
-          - apiVersion: v1
+          - apiVersion: networking.k8s.io/v1
             kind: Ingress
             metadata:
               name: hello-world
