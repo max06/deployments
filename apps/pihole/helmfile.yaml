@@ -6,3 +6,9 @@ releases:
   - name: pihole
     chart: pihole/pihole
     version: 2.29.1
+    values:
+      - replicaCount: 2
+        serviceDhcp:
+          enabled: false
+        serviceDns:
+          type: LoadBalancer
