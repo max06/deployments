@@ -8,31 +8,14 @@ environments:
       - repoUrl: https://github.com/max06/deployments
       - baseDir: testing
 ---
+helmfiles:
+  - path: clusters/in-cluster/apps/argocd/helmfile.yaml
+
 repositories:
   - name: argo
     url: https://argoproj.github.io/argo-helm
 
 releases:
-  - name: argocd
-    namespace: argocd
-    chart: argo/argo-cd
-    version: 7.8.26
-    installed: {{ eq .Environment.Name "default" | toYaml }}
-    values:
-      - apps/argocd/values.yaml
-    strategicMergePatches:
-      - apps/argocd/patches/repo-server.yaml
-    transformers:
-      - apiVersion: builtin
-        kind: LabelTransformer
-        metadata:
-          name: notImportantHere
-        labels:
-          argocd.argoproj.io/instance: in-cluster-argocd
-        fieldSpecs:
-          - path: metadata/labels
-            create: true
-
   - name: root
     namespace: argocd
     chart: argo/argocd-apps

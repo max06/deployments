@@ -1,0 +1,10 @@
+---
+environments:
+  default:
+    secrets:
+      - ../../values.sops.yaml
+
+helmfiles:
+  - path: ../../../../apps/argocd/helmfile.yaml
+    values:
+      - primary_domain: "{{ .StateValues.primary_domain }}"

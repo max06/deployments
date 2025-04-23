@@ -1,4 +1,25 @@
 ---
+repositories:
+  - name: argo-helm
+    url: https://argoproj.github.io/argo-helm
 releases:
   - name: argocd
-    chart: ./
+    chart: argo-helm/argo-cd
+    version: 7.8.26
+    namespace: argocd
+    values:
+      - global:
+          domain: 'ci.{{ .StateValues | get "primary_domain" }}'
+      - values.yaml
+    strategicMergePatches:
+      - patches/repo-server.yaml
+    transformers:
+      - apiVersion: builtin
+        kind: LabelTransformer
+        metadata:
+          name: notImportantHere
+        labels:
+          argocd.argoproj.io/instance: in-cluster-argocd
+        fieldSpecs:
+          - path: metadata/labels
+            create: true
