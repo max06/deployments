@@ -1,2 +1,0 @@
-baseApp: rancher-to-argocd-controller
-namespace: argocd
