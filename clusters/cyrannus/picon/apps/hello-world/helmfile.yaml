@@ -1,3 +1,3 @@
 ---
 helmfiles:
-  - path: ../../../../apps/hello-world/helmfile.yaml
+  - path: ../../../../../apps/hello-world/helmfile.yaml
