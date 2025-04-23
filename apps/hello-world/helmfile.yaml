@@ -20,10 +20,7 @@ releases:
               kind: Ingress
               metadata:
                 name: hello-world
-                annotations:
-                  traefik.ingress.kubernetes.io/router.entrypoints: websecure
               spec:
-                ingressClassName: traefik
                 rules:
                   - host: hello-world.internal
                     http:
