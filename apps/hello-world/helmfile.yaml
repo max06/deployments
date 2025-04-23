@@ -1,4 +1,41 @@
----
+repositories:
+  - name: hello-world
+    url: https://helm.github.io/examples
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+
 releases:
   - name: hello-world
-    chart: ./
+    chart: hello-world/hello-world
+    version: 0.1.0
+    namespace: hello-world
+    dependencies:
+      - chart: bedag/raw
+        alias: hello-world-ingress
+        version: 2.0.0
+    values:
+      - hello-world-ingress:
+          resources:
+            - apiVersion: v1
+              kind: Ingress
+              metadata:
+                name: hello-world
+                annotations:
+                  traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              spec:
+                ingressClassName: traefik
+                rules:
+                  - host: hello-world.internal
+                    http:
+                      paths:
+                        - path: /
+                          pathType: Prefix
+                          backend:
+                            service:
+                              name: hello-world
+                              port:
+                                number: 80
+                tls:
+                  - secretName: hello-world-tls
+                    hosts:
+                      - hello-world.internal
