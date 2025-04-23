@@ -1,0 +1,18 @@
+repositories:
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+
+releases:
+  - name: cilium-config
+    namespace: kube-system
+    chart: bedag/raw
+    version: 2.0.0
+    values:
+      - resources:
+          - apiVersion: "cilium.io/v2alpha1"
+            kind: CiliumLoadBalancerIPPool
+            metadata:
+              name: "internal-pool"
+            spec:
+              blocks:
+                - cidr: "192.168.30.240/28"
