@@ -1,0 +1,3 @@
+parameters:
+  xdebug: ${from_file:helmfile.yaml}
+  # xz: ${yaml:xdebug}

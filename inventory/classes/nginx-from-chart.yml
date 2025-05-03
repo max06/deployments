@@ -1,0 +1,20 @@
+parameters:
+  kapitan:
+    dependencies:
+      - type: https
+        source: https://helm.nginx.com/stable/nginx-ingress-0.3.3.tgz
+        unpack: True
+        output_path: components/charts
+    compile:
+      - output_path: .
+        input_type: helm
+        input_paths:
+          - components/charts/nginx-ingress
+        helm_values:
+          controller:
+            name: my-controller
+            image:
+              repository: custom_repo
+        helm_params:
+          name: my-first-release-name
+          namespace: my-first-namespace

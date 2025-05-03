@@ -1,0 +1,10 @@
+parameters:
+  kapitan:
+    compile:
+      - output_path: manifests
+        input_type: kadet
+        output_type: yml
+        input_paths:
+          - system/lib/helmfile
+        input_params:
+          foo: bar

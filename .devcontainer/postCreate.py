@@ -151,6 +151,10 @@ def main():
         "install kubevirt cli", "kubectl krew install virt", ["install krew"]
     )
 
+    runner.add_task(
+        "install kapitan", "pip3 install kapitan"
+    )
+
     success = runner.run_tasks()
     sys.exit(0 if success else 1)
 

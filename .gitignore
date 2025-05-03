@@ -4,3 +4,4 @@ switch-config.yaml
 charts/
 dist/
 testing-output/
+**/__pycache__/*

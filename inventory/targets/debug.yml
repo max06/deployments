@@ -1,0 +1,6 @@
+classes:
+  - common
+  - helmfile.init
+
+parameters:
+  foo: bar

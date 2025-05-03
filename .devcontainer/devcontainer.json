@@ -12,7 +12,8 @@
 		"ghcr.io/mpriscella/features/helm-chart-testing:1": {},
 		"ghcr.io/audacioustux/devcontainers/k9s:1": {},
 		"ghcr.io/devcontainers/features/node:1": {},
-		"ghcr.io/rio/features/kustomize:1": {}
+		"ghcr.io/rio/features/kustomize:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2.12.2": {}
 	},
 	"customizations": {
 		"vscode": {

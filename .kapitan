@@ -1,0 +1,17 @@
+compile:
+  prune: true
+  embed-refs: true
+  fetch: true
+  compose-node-name: true
+  yaml-dump-null-as-empty: true
+  refs-path: ./system/refs
+  jinja2-filters: ./system/templates/jinja2_filters.py
+  search-paths:
+    - .
+    - ./system/
+    - ./system/lib
+    - ./system/generators
+refs:
+  refs-path: ./system/refs
+global:
+  inventory-backend: omegaconf
