@@ -5,7 +5,7 @@ repositories:
 releases:
   - name: pihole
     chart: pihole/pihole
-    version: 2.29.1
+    version: 2.31.0
     values:
       - replicaCount: 2
         serviceDhcp:
