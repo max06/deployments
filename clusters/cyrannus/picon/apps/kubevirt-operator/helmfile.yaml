@@ -1,3 +1,4 @@
 ---
 helmfiles:
   - path: ../../../../../apps/kubevirt-operator/helmfile.yaml
+  - path: ../../../../../apps/kubevirt-cr/helmfile.yaml
