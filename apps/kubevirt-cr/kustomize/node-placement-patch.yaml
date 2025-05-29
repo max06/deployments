@@ -8,3 +8,6 @@ spec:
       tolerations:
         - key: node-role.kubernetes.io/etcd
           operator: Exists
+  configuration:
+    developerConfiguration:
+      featureGates: []
