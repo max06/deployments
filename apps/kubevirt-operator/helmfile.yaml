@@ -1,4 +1,4 @@
 ---
 releases:
   - name: kubevirt-operator
-    chart: ./
+    chart: ./kustomize
