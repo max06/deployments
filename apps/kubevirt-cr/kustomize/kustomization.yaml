@@ -9,3 +9,5 @@ patches:
     target:
       kind: KubeVirt
       name: kubevirt
+      
+namespace: kubevirt
