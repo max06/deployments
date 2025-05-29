@@ -265,9 +265,9 @@ applicationsets:
           - repoURL: {{ .Values | get "repoUrl" "repoUrl missing"}}
             targetRevision: HEAD
             path: {{`{{ .values.appInstancePath }}`}}
-        {{`{{- if (or .namespace false) }}`}}
-        plugin:
-          env:
-            - name: HELMFILE_USE_CONTEXT_NAMESPACE
-              value: true
-        {{`{{- end }}`}}
+            {{`{{- if (or .namespace false) }}`}}
+            plugin:
+              env:
+                - name: HELMFILE_USE_CONTEXT_NAMESPACE
+                  value: "true"
+            {{`{{- end }}`}}
