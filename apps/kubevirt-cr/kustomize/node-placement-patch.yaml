@@ -3,11 +3,22 @@ kind: KubeVirt
 metadata:
   name: kubevirt
 spec:
-  infra:
-    nodePlacement:
-      tolerations:
-        - key: node-role.kubernetes.io/etcd
-          operator: Exists
   configuration:
     developerConfiguration:
       featureGates: []
+    vmRolloutStrategy: LiveUpdate
+  infra:
+    nodePlacement:
+      tolerations:
+      - key: node-role.kubernetes.io/etcd
+        operator: Exists
+  workloadUpdateStrategy:
+    workloadUpdateMethods:
+    - LiveMigrate
+  workloads:
+    nodePlacement:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+      - key: node-role.kubernetes.io/etcd
+        operator: Exists
