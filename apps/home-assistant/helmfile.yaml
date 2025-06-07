@@ -8,9 +8,9 @@ releases:
     version: 0.3.4
     namespace: home-assistant
     values:
-      persistence:
-        enabled: true
-        size: 10Gi
-      addons:
-        codeserver:
+      - persistence:
           enabled: true
+          size: 10Gi
+        addons:
+          codeserver:
+            enabled: true
