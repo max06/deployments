@@ -1,3 +1,6 @@
 ---
 helmfiles:
   - path: ../../../../../apps/traefik/helmfile.yaml
+    values:
+      - primary_domain: '{{ "ref+sops://values.sops.yaml#primary_domain" | fetchSecretValue }}'
+---
