@@ -42,8 +42,3 @@ service:
 #   readOnlyRootFilesystem: true
 #   runAsNonRoot: true
 #   runAsUser: 65532
-
-tlsStore:
-  default:
-    defaultCertificate:
-      secretName: 'wildcard-{{ .Values.primary_domain | replace "." "-" }}-tls'
