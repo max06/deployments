@@ -1,0 +1,16 @@
+repositories:
+  - name: pajikos
+    url: http://pajikos.github.io/home-assistant-helm-chart/
+
+releases:
+  - name: home-assistant
+    chart: pajikos/home-assistant
+    version: 0.3.4
+    namespace: home-assistant
+    values:
+      persistence:
+        enabled: true
+        size: 10Gi
+      addons:
+        codeserver:
+          enabled: true
