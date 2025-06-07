@@ -26,3 +26,4 @@ releases:
             - host: home.{{ .Values.primary_domain }}
               paths:
                 - path: /
+                  pathType: Prefix
