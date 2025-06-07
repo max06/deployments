@@ -1,0 +1,57 @@
+extraObjects:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: external-traefik
+      namespace: traefik
+    spec:
+      ports:
+        - port: 80
+          targetPort: 80
+          name: http
+        - port: 443
+          targetPort: 443
+          name: https
+
+  - apiVersion: v1
+    kind: Endpoints
+    metadata:
+      name: external-traefik
+      namespace: traefik
+    subsets:
+      - addresses:
+          - ip: 192.168.27.249 # Replace with your external Traefik's IP
+        ports:
+          - port: 80
+            name: http
+          - port: 443
+            name: https
+
+  - apiVersion: traefik.io/v1alpha1
+    kind: ServersTransport
+    metadata:
+      name: insecure
+      namespace: traefik
+    spec:
+      insecureSkipVerify: true
+  - apiVersion: traefik.io/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: catch-all-fallback-tls
+      namespace: traefik
+    spec:
+      entryPoints:
+        - web
+        - websecure
+      routes:
+        - match: PathPrefix(`/`)
+          kind: Rule
+          priority: 1
+          services:
+            - name: external-traefik
+              port: 443
+              scheme: https # Forward as HTTPS
+              passHostHeader: true
+              serversTransport: insecure
+
+      tls: {} # Enable TLS termination

@@ -18,3 +18,4 @@ releases:
           default:
             defaultCertificate:
               secretName: 'wildcard-{{ .Values.primary_domain | replace "." "-" }}-tls'
+      - extra.yaml.gotmpl
