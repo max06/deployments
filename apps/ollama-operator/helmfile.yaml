@@ -1,0 +1,4 @@
+---
+releases:
+  - name: ollama-operator
+    chart: ./kustomize
