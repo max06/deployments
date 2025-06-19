@@ -4,3 +4,4 @@ metadata:
   name: deepseek-r1-8b
 spec:
   image: deepseek-r1:8b
+  replicas: 4
