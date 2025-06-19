@@ -1,0 +1,6 @@
+apiVersion: ollama.ayaka.io/v1
+kind: Model
+metadata:
+  name: deepseek-r1-8b
+spec:
+  image: deepseek-r1:8b

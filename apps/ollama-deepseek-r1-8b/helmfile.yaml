@@ -1,0 +1,4 @@
+---
+releases:
+  - name: ollama-deepseek-r1-8b
+    chart: ../ollama-deepseek-r1-8b
