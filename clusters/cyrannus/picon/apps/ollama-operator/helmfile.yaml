@@ -1,3 +1,5 @@
 ---
 helmfiles:
   - path: ../../../../../apps/ollama-operator/helmfile.yaml
+
+namespace: ollama-operator-system
