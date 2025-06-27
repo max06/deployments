@@ -71,9 +71,7 @@ extraObjects:
           services:
             - name: syno
               port: 9000
-              scheme: https # Forward as HTTPS
               passHostHeader: true
-              serversTransport: insecure
 
       tls: {} # Enable TLS termination
 
@@ -86,7 +84,7 @@ extraObjects:
       ports:
         - port: 9000
           targetPort: 9000
-          name: https
+          name: http
 
   - apiVersion: v1
     kind: Endpoints
@@ -98,4 +96,4 @@ extraObjects:
           - ip: 192.168.27.10
         ports:
           - port: 9000
-            name: https
+            name: http
