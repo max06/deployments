@@ -5,3 +5,5 @@ metadata:
 spec:
   image: deepseek-r1:8b
   replicas: 4
+  persistentVolume:
+    accessMode: ReadWriteMany
