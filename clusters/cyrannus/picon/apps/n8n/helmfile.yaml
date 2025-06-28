@@ -1,0 +1,6 @@
+---
+helmfiles:
+  - path: ../../../../../apps/n8n/helmfile.yaml
+    values:
+      - primary_domain: '{{ "ref+sops://values.sops.yaml#primary_domain" | fetchSecretValue }}'
+      - encryption_key: '{{ "ref+sops://values.sops.yaml#encryption_key" | fetchSecretValue }}'

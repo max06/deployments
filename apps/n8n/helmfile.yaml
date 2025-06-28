@@ -1,0 +1,25 @@
+repositories:
+  - name: n8n
+    url: 8gears.container-registry.com/library
+    oci: true
+
+releases:
+  - name: n8n
+    chart: n8n/n8n
+    version: 1.0.10
+    values:
+      - main:
+          secret:
+            n8n:
+              encryption_key: "{{ .Values.encryption_key }}"
+          resources:
+            limits:
+              memory: 2048Mi
+            requests:
+              memory: 512Mi
+        ingress:
+          enabled: true
+          hosts:
+            - host: "n8n.{{ .Values.primary_domain }}"
+              paths:
+                - /
