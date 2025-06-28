@@ -1,5 +1,6 @@
 primary_domain: ENC[AES256_GCM,data:s5pedaU43ZWk,iv:GqmxY7nAZgChi2VuM8dWTMzut+XQNkzw8SY2lnYUwqk=,tag:1a90BRRj6AdRzMhQ1CS83Q==,type:str]
 encryption_key: ENC[AES256_GCM,data:99fO6n2rAGpKbTUfxcPBAV6x4nkJ2Qjk3oMOVPwTQg0=,iv:S06MDh7BUFefR4VtUhNzYWSTY9OtB6Gh7Sl9ka4/UdA=,tag:/gyVhEZ/rBPWRdv6ZARjNw==,type:str]
+license_activation_key: ENC[AES256_GCM,data:iL3OWhioJXIBmQuiXPf7j19ECAdey59Xp+NZb1gSb1OCc+i3,iv:B+Drku+6lqF7TMQSLXBCNSHHTaZ/sqWsmRBZtFD8yCk=,tag:RTS5j8ArJ0FLKg+wk2IFww==,type:str]
 sops:
     age:
         - recipient: age1y7udc7lr39ekhxrdn54lrslmktzduw3594jdc9c9pgg6ej79r9jszgm4sw
@@ -11,8 +12,8 @@ sops:
             cUd0YksxY1haYXV4bnprVURRRmorRjQKd65e2dMWZHyrv3RD7QgPgnv3HgiKQahL
             Q/8Ai8KMga3donL5g3DAP5ADXqh0MFKruVFwdFcyZRt7o3bqLHKe0A==
             -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2025-06-28T18:46:30Z"
-    mac: ENC[AES256_GCM,data:L/XX3aCjNQSU74vciLNRXTTCFs0pWaAKH1pd1vlIwPLW8g1Od+O+K9toExYmL8dJse53+4XWiy5yMqKrc76mF2IdKrkv160leQXm9lGUUh7HQmZuCSM6oFVpPNFUutxgmDYU6IzPEPuZi+BgeYosk4jlzUvnusBAbOyQMvAsMp8=,iv:IHCdhkAFPuislh2yCpoulMq8skza+/7WKdrz8MyVtaE=,tag:sN51In6AlkMPj5tYHh5imA==,type:str]
+    lastmodified: "2025-06-28T20:06:55Z"
+    mac: ENC[AES256_GCM,data:xs9TFNGoUfKIh1slfDk0Zn9c2BKGmqAOz7ROWDICxMXuoJ3ZvwpHTWJi045ONF3RmTH3ZA1+oRuXPsdysFVXLhQsOBUhGuog6DkU4Ll/5aF8LgeowgfX9vKM/2c3g2CJ2QMi6NbJyZ+2u4qv8h4sLpI/fvb5RQvkcSI4vJHp8Fs=,iv:TN6xKda4KTrkv6A3LTkBxLIb+Q8eDYmREZe46iSWVl0=,tag:j9HFN8FpbUNMSW5E/AW7pw==,type:str]
     pgp:
         - created_at: "2025-04-23T09:46:08Z"
           enc: |-

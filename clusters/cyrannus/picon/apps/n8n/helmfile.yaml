@@ -4,3 +4,4 @@ helmfiles:
     values:
       - primary_domain: '{{ "ref+sops://values.sops.yaml#primary_domain" | fetchSecretValue }}'
       - encryption_key: '{{ "ref+sops://values.sops.yaml#encryption_key" | fetchSecretValue }}'
+      - license_activation_key: '{{ "ref+sops://values.sops.yaml#license_activation_key" | fetchSecretValue }}'

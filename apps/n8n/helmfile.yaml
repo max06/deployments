@@ -9,14 +9,27 @@ releases:
     version: 1.0.10
     values:
       - main:
+          config:
+            n8n:
+              license:
+                activation:
+                  key: "{{ .Values.license_activation_key }}"
           secret:
             n8n:
               encryption_key: "{{ .Values.encryption_key }}"
+          persistence:
+            enabled: true
+            type: dynamic
+            size: 1Gi
+            accessModes:
+              - ReadWriteMany
           resources:
             limits:
               memory: 2048Mi
             requests:
               memory: 512Mi
+        webhook:
+          enabled: true
         ingress:
           enabled: true
           hosts:
