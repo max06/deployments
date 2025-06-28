@@ -11,6 +11,7 @@ releases:
       - main:
           config:
             n8n:
+              editor_base_url: "https://n8n.{{ .Values.primary_domain }}"
               license:
                 activation:
                   key: "{{ .Values.license_activation_key }}"
@@ -28,6 +29,7 @@ releases:
               memory: 2048Mi
             requests:
               memory: 512Mi
+            webhook_url: "https://n8n.{{ .Values.primary_domain }}"
         webhook:
           enabled: true
         ingress:
@@ -40,8 +42,15 @@ releases:
         valkey:
           enabled: true
           architecture: standalone
-
+          sentinel:
+            enabled: false
+          auth:
+            enabled: false
           primary:
+            kind: Deployment
             persistence:
-              enabled: true
-              size: 1Gi
+              enabled: false
+            resources:
+              requests:
+                memory: 256Mi
+                cpu: 100m
