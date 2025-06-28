@@ -23,3 +23,4 @@ releases:
             - host: "n8n.{{ .Values.primary_domain }}"
               paths:
                 - /
+          tls: []
