@@ -10,6 +10,7 @@ releases:
     values:
       - main:
           config:
+            host: "n8n.{{ .Values.primary_domain }}"
             n8n:
               editor_base_url: "https://n8n.{{ .Values.primary_domain }}"
               license:
@@ -21,17 +22,11 @@ releases:
           persistence:
             enabled: true
             type: dynamic
-            size: 1Gi
-            accessModes:
-              - ReadWriteMany
           resources:
             limits:
               memory: 2048Mi
             requests:
               memory: 512Mi
-            webhook_url: "https://n8n.{{ .Values.primary_domain }}"
-        webhook:
-          enabled: true
         ingress:
           enabled: true
           hosts:
@@ -39,18 +34,3 @@ releases:
               paths:
                 - /
           tls: []
-        valkey:
-          enabled: true
-          architecture: standalone
-          sentinel:
-            enabled: false
-          auth:
-            enabled: false
-          primary:
-            kind: Deployment
-            persistence:
-              enabled: false
-            resources:
-              requests:
-                memory: 256Mi
-                cpu: 100m
