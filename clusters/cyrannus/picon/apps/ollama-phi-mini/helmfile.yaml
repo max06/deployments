@@ -1,0 +1,3 @@
+---
+helmfiles:
+  - path: ../../../../../apps/ollama-phi-mini/helmfile.yaml

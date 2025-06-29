@@ -1,0 +1,4 @@
+---
+releases:
+  - name: ollama-phi-mini
+    chart: ../ollama-phi-mini

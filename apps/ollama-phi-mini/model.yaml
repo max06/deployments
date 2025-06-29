@@ -1,0 +1,9 @@
+apiVersion: ollama.ayaka.io/v1
+kind: Model
+metadata:
+  name: phi-mini
+spec:
+  image: phi-mini
+  replicas: 4
+  persistentVolume:
+    accessMode: ReadWriteMany
