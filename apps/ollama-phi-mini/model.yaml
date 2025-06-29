@@ -3,7 +3,7 @@ kind: Model
 metadata:
   name: phi-mini
 spec:
-  image: phi-mini
+  image: phi3:3.8b
   replicas: 4
   persistentVolume:
     accessMode: ReadWriteMany
