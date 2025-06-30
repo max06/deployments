@@ -1,0 +1,40 @@
+repositories:
+  - name: open-webui
+    url: https://helm.openwebui.com/
+
+releases:
+  - name: open-webui
+    chart: open-webui/open-webui
+    version: 6.22.0
+    values:
+      - ollama:
+          enabled: false
+        pipelines:
+          # -- Automatically install Pipelines chart to extend Open WebUI functionality using Pipelines: https://github.com/open-webui/pipelines
+          enabled: false
+          # -- This section can be used to pass required environment variables to your pipelines (e.g. Langfuse hostname)
+          extraEnvVars: []
+
+        websocket:
+          # -- Enables websocket support in Open WebUI with env `ENABLE_WEBSOCKET_SUPPORT`
+          enabled: false
+
+        resources: {}
+
+        persistence:
+          enabled: true
+          size: 2Gi
+          # -- Use existingClaim if you want to re-use an existing Open WebUI PVC instead of creating a new one
+          existingClaim: ""
+          # -- Subdirectory of Open WebUI PVC to mount. Useful if root directory is not empty.
+          subPath: ""
+          # -- If using multiple replicas, you must update accessModes to ReadWriteMany
+          accessModes:
+            - ReadWriteOnce
+          storageClass: ""
+          selector: {}
+          annotations: {}
+          # -- Sets the storage provider, availables values are `local`, `s3`, `gcs` or `azure`
+          provider: local
+
+        commonEnvVars: []
