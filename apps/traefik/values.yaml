@@ -18,12 +18,13 @@ ingressRoute:
 #   kubernetesIngress:
 #     enabled: true
 
-# ports:
-#   web:
-#     port: 80
-#     expose: true
-#     exposedPort: 80
-#     protocol: TCP
+ports:
+  web:
+    redirections:
+      entryPoint:
+        to: websecure
+        scheme: https
+        permanent: true
 #   websecure:
 #     port: 443
 #     expose: true
