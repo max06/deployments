@@ -22,3 +22,4 @@ releases:
               name: "internal-policy"
             spec:
               loadBalancerIPs: true
+              externalIPs: true
