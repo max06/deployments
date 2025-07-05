@@ -96,7 +96,7 @@ spec:
       serviceAccountName: rancher-to-argocd-controller
       containers:
         - name: rancher-to-argocd-controller-cyrannus
-          image: travisghansen/rancher-to-argocd-controller:latest
+          image: travisghansen/rancher-to-argocd-controller:v0.3.3
           env:
             - name: ENVIRONMENT_ID
               value: "cyrannus"
