@@ -96,9 +96,11 @@ spec:
       serviceAccountName: rancher-to-argocd-controller
       containers:
         - name: rancher-to-argocd-controller-cyrannus
-          image: travisghansen/rancher-to-argocd-controller:v0.3.3
+          image: travisghansen/rancher-to-argocd-controller:latest
           env:
             - name: ENVIRONMENT_ID
               value: "cyrannus"
             - name: RANCHER_URI
               value: "https://rancher.max06.net"
+            - name: ENABLE_HOOK_RANCHER_CLUSTERS_TO_ARGOCD_CLUSTERS
+              value: "true"
