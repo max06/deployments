@@ -45,3 +45,8 @@ service:
 #   readOnlyRootFilesystem: true
 #   runAsNonRoot: true
 #   runAsUser: 65532
+
+logs:
+  access:
+    # -- To enable access logs
+    enabled: true
