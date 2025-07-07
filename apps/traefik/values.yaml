@@ -28,7 +28,7 @@ ports:
   websecure:
     http:
       middlewares:
-        - internal@kubernetescrd
+        - traefik-internal@kubernetescrd
 
 #     port: 443
 #     expose: true
