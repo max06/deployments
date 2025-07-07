@@ -25,7 +25,11 @@ ports:
         to: websecure
         scheme: https
         permanent: true
-#   websecure:
+  websecure:
+    http:
+      middlewares:
+        - internal@kubernetescrd
+
 #     port: 443
 #     expose: true
 #     exposedPort: 443

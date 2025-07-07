@@ -1,2 +1,12 @@
 extraObjects:
   {{- .Values.extraObjects | toYaml | nindent 2 }}
+  - apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      name: internal
+    spec:
+      ipAllowList:
+        sourceRange:
+          - 127.0.0.1/32
+          - 192.168.27.0/24
+          - 192.168.30.0/24
