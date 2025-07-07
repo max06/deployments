@@ -40,6 +40,8 @@ extraObjects:
     metadata:
       name: catch-all-fallback-tls
       namespace: traefik
+      annotations:
+        traefik.ingress.kubernetes.io/router.middlewares: traefik-public@kubernetescrd
     spec:
       entryPoints:
         - web
