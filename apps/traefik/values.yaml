@@ -26,9 +26,8 @@ ports:
         scheme: https
         permanent: true
   websecure:
-    http:
-      middlewares:
-        - traefik-internal@kubernetescrd
+    middlewares:
+      - traefik-internal@kubernetescrd
 
 #     port: 443
 #     expose: true
