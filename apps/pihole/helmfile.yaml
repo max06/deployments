@@ -7,7 +7,7 @@ releases:
     chart: pihole/pihole
     version: 2.31.0
     values:
-      - replicaCount: 2
+      - replicaCount: 1
         serviceDhcp:
           enabled: false
         serviceDns:
@@ -22,5 +22,3 @@ releases:
           FTLCONF_dns_listeningMode: all
         persistentVolumeClaim:
           enabled: true
-          accessModes:
-            - ReadWriteMany
