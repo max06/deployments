@@ -22,5 +22,3 @@ releases:
           FTLCONF_dns_listeningMode: all
         persistentVolumeClaim:
           enabled: true
-          accessModes:
-            - ReadWriteMany
