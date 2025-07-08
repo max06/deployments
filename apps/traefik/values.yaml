@@ -42,6 +42,7 @@ ports:
       enabled: true
     middlewares:
       - traefik-internal@kubernetescrd
+    asDefault: true
 
 #     port: 443
 #     expose: true
