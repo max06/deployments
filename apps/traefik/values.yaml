@@ -25,7 +25,21 @@ ports:
         to: websecure
         scheme: https
         permanent: true
+    expose:
+      default: false
+      public: true
   websecure:
+    expose:
+      default: false
+      public: true
+  webinternal:
+    port: 8444
+    exposedPort: 443
+    expose:
+      default: true
+      public: false
+    tls:
+      enabled: true
     middlewares:
       - traefik-internal@kubernetescrd
 
@@ -39,15 +53,17 @@ service:
   spec:
     loadBalancerClass: io.cilium/l2-announcer
   annotations:
-    "lbipam.cilium.io/ips": "192.168.30.240"
     "service.cilium.io/type": "LoadBalancer"
-    "service.cilium.io/forwarding-mode": "dsr"
-# securityContext:
-#   capabilities:
-#     drop: [ALL]
-#   readOnlyRootFilesystem: true
-#   runAsNonRoot: true
-#   runAsUser: 65532
+  additionalServices:
+    public:
+      type: LoadBalancer
+      labels:
+        traefik-service-label: internal
+      annotations:
+        "lbipam.cilium.io/ips": "192.168.30.240"
+        "service.cilium.io/type": "LoadBalancer"
+      spec:
+        loadBalancerClass: io.cilium/l2-announcer
 
 logs:
   access:
