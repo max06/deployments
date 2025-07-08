@@ -38,11 +38,10 @@ extraObjects:
   - apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
-      name: catch-all-fallback-tls
+      name: catch-all-fallback
       namespace: traefik
     spec:
       entryPoints:
-        - web
         - websecure
         - webinternal
       routes:
@@ -55,8 +54,6 @@ extraObjects:
               scheme: https # Forward as HTTPS
               passHostHeader: true
               serversTransport: insecure
-
-      tls: {} # Enable TLS termination
 
   - apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
@@ -74,8 +71,6 @@ extraObjects:
             - name: syno
               port: 9000
               passHostHeader: true
-
-      tls: {} # Enable TLS termination
 
   - apiVersion: v1
     kind: Service
