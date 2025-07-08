@@ -18,8 +18,7 @@ releases:
             enabled: true
         ingress:
           enabled: true
-          annotations:
-            traefik.ingress.kubernetes.io/router.middlewares: traefik-public@kubernetescrd
+
           hosts:
             - host: home.{{ .Values.primary_domain }}
               paths:
