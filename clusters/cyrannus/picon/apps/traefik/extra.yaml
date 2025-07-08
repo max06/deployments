@@ -44,6 +44,7 @@ extraObjects:
       entryPoints:
         - web
         - websecure
+        - webinternal
       routes:
         - match: PathPrefix(`/`)
           kind: Rule
@@ -65,6 +66,7 @@ extraObjects:
     spec:
       entryPoints:
         - websecure
+        - webinternal
       routes:
         - match: Host(`s3.max06.net`)
           kind: Rule
