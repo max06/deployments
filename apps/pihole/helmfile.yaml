@@ -24,3 +24,7 @@ releases:
           enabled: true
         image:
           tag: "2025.06.2"
+        ingress:
+          enabled: true
+          hosts:
+            - pihole.{{ .Values.primary_domain }}
