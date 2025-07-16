@@ -8,10 +8,6 @@ deployment:
 #       cpu: 300m
 #       memory: 256Mi
 
-ingressRoute:
-  dashboard:
-    enabled: true
-
 # providers:
 #   kubernetesCRD:
 #     enabled: true

@@ -18,4 +18,10 @@ releases:
           default:
             defaultCertificate:
               secretName: 'wildcard-{{ .Values.primary_domain | replace "." "-" }}-tls'
+        ingressRoute:
+          dashboard:
+            enabled: true
+            # Custom match rule with host domain
+            matchRule: Host('ingress.{{ .Values.primary_domain }}')
+            entryPoints: ["webinternal"]
       - extra.yaml.gotmpl
