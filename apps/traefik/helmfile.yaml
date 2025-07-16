@@ -25,7 +25,7 @@ releases:
               external-dns.alpha.kubernetes.io/target: 192.168.30.242
               kubernetes.io/ingress.class: traefik
             # Custom match rule with host domain
-            matchRule: Host('ingress.{{ .Values.primary_domain }}')
+            matchRule: Host(`ingress.{{ .Values.primary_domain }}`)
             entryPoints: ["webinternal"]
         service:
           type: LoadBalancer
