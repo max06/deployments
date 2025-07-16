@@ -26,4 +26,23 @@ releases:
             # Custom match rule with host domain
             matchRule: Host('ingress.{{ .Values.primary_domain }}')
             entryPoints: ["webinternal"]
+        service:
+          type: LoadBalancer
+          spec:
+            loadBalancerClass: io.cilium/l2-announcer
+          annotations:
+            "service.cilium.io/type": "LoadBalancer"
+            external-dns.alpha.kubernetes.io/hostname: public-ingress.{{ .Values.primary_domain }}
+          additionalServices:
+            public:
+              type: LoadBalancer
+              labels:
+                traefik-service-label: internal
+              annotations:
+                "lbipam.cilium.io/ips": "192.168.30.240"
+                "service.cilium.io/type": "LoadBalancer"
+                external-dns.alpha.kubernetes.io/hostname: internal-ingress.{{ .Values.primary_domain }}
+
+              spec:
+                loadBalancerClass: io.cilium/l2-announcer
       - extra.yaml.gotmpl
