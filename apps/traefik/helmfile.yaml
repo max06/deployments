@@ -21,6 +21,8 @@ releases:
         ingressRoute:
           dashboard:
             enabled: true
+            annotations:
+              external-dns.alpha.kubernetes.io/target: ingress.{{ .Values.primary_domain }}
             # Custom match rule with host domain
             matchRule: Host('ingress.{{ .Values.primary_domain }}')
             entryPoints: ["webinternal"]
