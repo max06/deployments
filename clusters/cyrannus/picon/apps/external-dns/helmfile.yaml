@@ -1,0 +1,5 @@
+---
+helmfiles:
+  - path: ../../../../../apps/external-dns/helmfile.yaml
+    values:
+      - pihole_password: '{{ "ref+sops://values.sops.yaml#pihole_password" | fetchSecretValue }}'
