@@ -22,7 +22,7 @@ releases:
           dashboard:
             enabled: true
             annotations:
-              external-dns.alpha.kubernetes.io/target: internal-ingress.{{ .Values.primary_domain }}
+              external-dns.alpha.kubernetes.io/target: 192.168.30.242
             # Custom match rule with host domain
             matchRule: Host('ingress.{{ .Values.primary_domain }}')
             entryPoints: ["webinternal"]
