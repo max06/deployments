@@ -10,7 +10,7 @@ releases:
     namespace: kube-system
   - name: traefik
     chart: traefik/traefik
-    version: 35.0.1
+    version: 35.4.0
     namespace: traefik
     values:
       - values.yaml
