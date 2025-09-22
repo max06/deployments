@@ -20,7 +20,6 @@ releases:
         registry: noop
         extraArgs:
           - "--pihole-api-version=6"
-          - "--traefik-disable-legacy"
         env:
           - name: EXTERNAL_DNS_PIHOLE_SERVER
             value: http://pihole-web.pihole.svc.cluster.local
