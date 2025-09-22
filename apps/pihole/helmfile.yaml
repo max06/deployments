@@ -22,6 +22,7 @@ releases:
           FTLCONF_dns_listeningMode: all
         persistentVolumeClaim:
           enabled: true
+          size: "10Gi"
         image:
           tag: "2025.06.2"
         ingress:
