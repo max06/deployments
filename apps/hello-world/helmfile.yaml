@@ -12,7 +12,7 @@ releases:
 
   - name: hello-world-ingress
     chart: bedag/raw
-    version: 2.0.0
+    version: 2.0.2
     values:
       - resources:
           - apiVersion: networking.k8s.io/v1

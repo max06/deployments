@@ -6,7 +6,7 @@ releases:
   - name: cilium-config
     namespace: kube-system
     chart: bedag/raw
-    version: 2.0.0
+    version: 2.0.2
     values:
       - resources:
           - apiVersion: "cilium.io/v2alpha1"
