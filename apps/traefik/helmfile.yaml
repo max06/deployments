@@ -6,7 +6,7 @@ repositories:
 releases:
   - name: traefik-crds
     chart: traefik/traefik-crds
-    version: 1.11.0
+    version: 1.11.1
     namespace: kube-system
   - name: traefik
     chart: traefik/traefik
