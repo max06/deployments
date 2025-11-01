@@ -110,7 +110,8 @@ extraObjects:
           kind: Rule
           services:
             - name: proxmox
-              port: 443
+              port: 8006
+              scheme: http # Forward as HTTP
               passHostHeader: false
               serversTransport: insecure
 
@@ -121,7 +122,7 @@ extraObjects:
       namespace: traefik
     spec:
       ports:
-        - port: 443
+        - port: 8006
           targetPort: 8006
           name: frontend
 
