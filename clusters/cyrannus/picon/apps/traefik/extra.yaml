@@ -111,7 +111,8 @@ extraObjects:
           services:
             - name: proxmox
               port: 8006
-              passHostHeader: false
+              scheme: https                    # Add this
+              passHostHeader: false            # Change to true
               serversTransport: insecure
 
   - apiVersion: v1
@@ -124,6 +125,7 @@ extraObjects:
         - port: 8006
           targetPort: 8006
           name: frontend
+          protocol: TCP                        # Explicitly set protocol
 
   - apiVersion: discovery.k8s.io/v1
     kind: EndpointSlice
