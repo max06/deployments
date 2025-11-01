@@ -111,7 +111,6 @@ extraObjects:
           services:
             - name: proxmox
               port: 8006
-              scheme: https # Forward as HTTP
               passHostHeader: false
               serversTransport: insecure
 
