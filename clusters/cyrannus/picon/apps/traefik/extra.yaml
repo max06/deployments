@@ -142,3 +142,5 @@ extraObjects:
     endpoints:
       - addresses:
           - "192.168.27.203"
+        conditions:
+          ready: true          # ADD THIS
