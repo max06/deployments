@@ -11,3 +11,5 @@ releases:
           enabled: true
           hosts:
             - host: httpbin.{{ .Values.primary_domain }}
+              paths:
+                - path: "/"
