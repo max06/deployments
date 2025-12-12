@@ -16,3 +16,10 @@ releases:
                   pathType: "ImplementationSpecific"
       - image:
           tag: 2.19
+    strategicMergePatches:
+      - apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: httpbin-httpbingo
+          annotations:
+            traefik.ingress.kubernetes.io/router.entrypoints: websecure
