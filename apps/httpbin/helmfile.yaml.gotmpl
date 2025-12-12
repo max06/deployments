@@ -13,3 +13,4 @@ releases:
             - host: httpbin.{{ .Values.primary_domain }}
               paths:
                 - path: "/"
+                  pathType: "ImplementationSpecific"
