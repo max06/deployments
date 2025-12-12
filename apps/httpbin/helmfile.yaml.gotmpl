@@ -1,0 +1,13 @@
+repositories:
+  - name: estahn
+    url: https://estahn.github.io/charts
+
+releases:
+  - name: httpbin
+    chart: estahn/httpbingo
+    version: 0.1.1
+    values:
+      - ingress:
+          enabled: true
+          hosts:
+            - host: httpbin.{{ .Values.primary_domain }}
