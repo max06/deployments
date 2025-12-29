@@ -14,7 +14,7 @@ releases:
           type: LoadBalancer
           mixedService: true
           annotations:
-            "lbipam.cilium.io/ips": "192.168.30.241"
+            "lbipam.cilium.io/ips": "192.168.30.240"
           externalTrafficPolicy: Cluster
         doh:
           enabled: true

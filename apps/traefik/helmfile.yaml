@@ -13,37 +13,80 @@ releases:
     version: 37.4.0
     namespace: traefik
     values:
-      - values.yaml
-      - tlsStore:
-          default:
-            defaultCertificate:
-              secretName: 'wildcard-{{ .Values.primary_domain | replace "." "-" }}-tls'
-        ingressRoute:
-          dashboard:
+      - deployment:
+          replicas: 2
+
+        logs:
+          access:
             enabled: true
-            annotations:
-              external-dns.alpha.kubernetes.io/target: 192.168.30.242
-              kubernetes.io/ingress.class: traefik
-            # Custom match rule with host domain
-            matchRule: Host(`ingress.{{ .Values.primary_domain }}`)
-            entryPoints: ["webinternal"]
+
+        ports:
+          web: # 192.168.30.242
+            redirections:
+              entryPoint:
+                to: websecure
+                scheme: https
+                permanent: true
+            expose:
+              default: false
+              public: true
+          websecure: # 192.168.30.242
+            expose:
+              default: false
+              public: true
+            tls:
+              enabled: true
+            transport:
+              respondingTimeouts:
+                readTimeout: 0
+          webinternal: # 192.168.30.241
+            port: 8444
+            exposedPort: 443
+            expose:
+              default: true
+              public: false
+            tls:
+              enabled: true
+            middlewares:
+              - traefik-internal@kubernetescrd
+            asDefault: true
+            transport:
+              respondingTimeouts:
+                readTimeout: 0
+
         service:
           type: LoadBalancer
           spec:
             loadBalancerClass: io.cilium/l2-announcer
+          labels:
+            traefik-service-label: internal
           annotations:
+            "lbipam.cilium.io/ips": "192.168.30.241"
             "service.cilium.io/type": "LoadBalancer"
             external-dns.alpha.kubernetes.io/hostname: internal-ingress.{{ .Values.primary_domain }}
           additionalServices:
             public:
               type: LoadBalancer
+              spec:
+                loadBalancerClass: io.cilium/l2-announcer
               labels:
-                traefik-service-label: internal
+                traefik-service-label: public
               annotations:
-                "lbipam.cilium.io/ips": "192.168.30.240"
+                "lbipam.cilium.io/ips": "192.168.30.242"
                 "service.cilium.io/type": "LoadBalancer"
                 external-dns.alpha.kubernetes.io/hostname: public-ingress.{{ .Values.primary_domain }}
 
-              spec:
-                loadBalancerClass: io.cilium/l2-announcer
+        tlsStore:
+          default:
+            defaultCertificate:
+              secretName: 'wildcard-{{ .Values.primary_domain | replace "." "-" }}-tls'
+
+      - ingressRoute:
+          dashboard:
+            enabled: true
+            annotations:
+              external-dns.alpha.kubernetes.io/target: 192.168.30.241
+            matchRule: Host(`ingress.{{ .Values.primary_domain }}`)
+            entryPoints: ["webinternal"]
+
       - extra.yaml.gotmpl
