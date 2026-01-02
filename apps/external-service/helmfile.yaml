@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://www.schemastore.org/helmfile.json
+
+repositories:
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+
+releases:
+  - name: external-service-{{ .Values.name }}
+    chart: bedag/raw
+    version: 2.0.2
+    values:
+      - resources:
+          - kind: Service
+            apiVersion: v1
+            metadata:
+              name: "{{ .Values.name}}"
+              namespace: "{{ .Namespace }}"
+              labels:
+                debug: |
+                  {{ . | toYaml | nindent 18 }}
+
+            spec:
+              type: ExternalName
+              ports:
+                - name: http
+                  port: 8006
+                  targetPort: 8006
+              externalName: "{{ .Values.target }}"
