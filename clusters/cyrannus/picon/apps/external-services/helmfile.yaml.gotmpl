@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://www.schemastore.org/helmfile.json
+---
+namespace: external-services
+
+helmfiles:
+  - path: ../../../../../apps/external-service/helmfile.yaml
+    values:
+      - name: proxmox
+        targetHost: srv-pm01.srv.hive.internal
+        targetIP: 192.168.30.11
+        targetPort: 8006
+        dnsOverride: 192.168.30.241
+        entrypoint: webinternal
+        host: proxmox.max06.net
+        scheme: https
+        passHostHeader: false
+        serversTransport: insecure
