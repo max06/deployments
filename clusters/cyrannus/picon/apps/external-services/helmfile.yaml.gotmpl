@@ -3,7 +3,7 @@
 namespace: external-services
 
 helmfiles:
-  - path: ../../../../../apps/external-service/helmfile.yaml
+  - path: ../../../../../apps/external-service/helmfile.yaml.gotmpl
     values:
       - name: proxmox
         targetHost: srv-pm01.srv.hive.internal
