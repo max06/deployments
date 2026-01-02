@@ -46,5 +46,5 @@ releases:
                     - name: '{{ .Values | get "name" }}'
                       port: {{ .Values | get "targetPort" }}
                       scheme: '{{ .Values | get "scheme" "http" }}' # Add this
-                      passHostHeader: '{{ .Values | get "passHostHeader" false }}' # Change to true
+                      passHostHeader: {{ .Values | get "passHostHeader" false }} # Change to true
                       serversTransport: '{{ .Values | getOrNil "serversTransport" }}'
