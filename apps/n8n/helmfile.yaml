@@ -6,7 +6,7 @@ repositories:
 releases:
   - name: n8n
     chart: n8n/n8n
-    version: 1.0.15
+    version: 2.0.1
     values:
       - main:
           config:
