@@ -26,6 +26,7 @@ extraObjects:
       namespace: argocd                                                                                                                                                │
     type: Opaque
     stringData:                                                                                                                                                              │
-      config: '{"tlsClientConfig":{"insecure":false}}'                                                                                                     │
+      config: |
+        {"tlsClientConfig":{"insecure":false}}                                                                                                     │
       name: cyrannus-helios                                                                                                                                       │
       server: "https://kubernetes.default.svc"                                                                                                                 │
