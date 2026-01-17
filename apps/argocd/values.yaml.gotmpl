@@ -12,21 +12,21 @@ server:
     enabled: true
 
 extraObjects:
-  - apiVersion: v1                                                                                                                                                     │
-    kind: Secret                                                                                                                                                       │
-    metadata:                                                                                                                                                          │
-      annotations:                                                                                                                                                     │
-        managed-by: argocd.argoproj.io                                                                                                                                 │
-      labels:                                                                                                                                                          │
-        argocd.argoproj.io/secret-type: cluster                                                                                                                        │
-        clusterGroup: cyrannus                                                                                                                                         │
-        clusterId: helios                                                                                                                                              │
-        environmentId: cyrannus                                                                                                                                        │
-      name: cluster-kubernetes.default.svc                                                                                                                  │
-      namespace: argocd                                                                                                                                                │
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      annotations:
+        managed-by: argocd.argoproj.io
+      labels:
+        argocd.argoproj.io/secret-type: cluster
+        clusterGroup: cyrannus
+        clusterId: helios
+        environmentId: cyrannus
+      name: cluster-kubernetes.default.svc
+      namespace: argocd
     type: Opaque
-    stringData:                                                                                                                                                              │
+    stringData:
       config: |
-        {"tlsClientConfig":{"insecure":false}}                                                                                                     │
-      name: cyrannus-helios                                                                                                                                       │
-      server: "https://kubernetes.default.svc"                                                                                                                 │
+        {"tlsClientConfig":{"insecure":false}}
+      name: cyrannus-helios
+      server: "https://kubernetes.default.svc"
