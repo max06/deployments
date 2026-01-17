@@ -104,3 +104,5 @@ spec:
               value: "https://rancher.max06.net"
             - name: ENABLE_HOOK_RANCHER_CLUSTERS_TO_ARGOCD_CLUSTERS
               value: "true"
+            - name: RANCHER_CLUSTERS_TO_ARGOCD_CLUSTERS_CLUSTER_NAME_EXCLUDE_REGEX
+              value: "^helios$"
