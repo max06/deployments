@@ -5,12 +5,10 @@ repositories:
 releases:
   - name: argocd
     chart: argo-helm/argo-cd
-    version: 7.8.28
+    version: v9.3.4
     namespace: argocd
     values:
-      - global:
-          domain: 'ci.{{ .StateValues | get "primary_domain" }}'
-      - values.yaml
+      - values.yaml.gotmpl
     strategicMergePatches:
       - patches/repo-server.yaml
     transformers:

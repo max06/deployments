@@ -1,0 +1,12 @@
+configs:
+  params:
+    server.insecure: true
+  cm:
+    kustomize.buildOptions: --load-restrictor LoadRestrictionsNone --enable-helm
+
+global:
+  domain: "ci.{{  .Values.primary_domain  }}"
+
+server:
+  ingress:
+    enabled: true

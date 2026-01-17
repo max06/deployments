@@ -1,0 +1,4 @@
+helmfiles:
+  - path: ../../../../apps/argocd/helmfile.yaml.gotmpl
+    values:
+      - primary_domain: {{ "ref+sops://values.sops.yaml#primary_domain" | fetchSecretValue }}
