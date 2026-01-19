@@ -5,7 +5,7 @@ repositories:
 releases:
   - name: open-webui
     chart: open-webui/open-webui
-    version: 9.0.0
+    version: 10.2.1
     values:
       - ollama:
           enabled: false
