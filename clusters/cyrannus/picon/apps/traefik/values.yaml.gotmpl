@@ -1,4 +1,4 @@
-extraObjects:
+extra:
   - apiVersion: v1
     kind: Service
     metadata:
@@ -65,7 +65,7 @@ extraObjects:
         - websecure
         - webinternal
       routes:
-        - match: Host(`s3.max06.net`)
+        - match: Host(`s3.{{ .Values.primary_domain }}`)
           kind: Rule
           services:
             - name: syno

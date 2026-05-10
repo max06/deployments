@@ -1,0 +1,6 @@
+apps:
+  - template: traefik
+
+settings:
+  branch: main
+  autoSync: false
