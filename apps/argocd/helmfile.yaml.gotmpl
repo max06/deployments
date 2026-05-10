@@ -1,4 +1,3 @@
----
 repositories:
   - name: argo-helm
     url: https://argoproj.github.io/argo-helm
@@ -11,13 +10,3 @@ releases:
       - values.yaml.gotmpl
     strategicMergePatches:
       - patches/repo-server.yaml
-    transformers:
-      - apiVersion: builtin
-        kind: LabelTransformer
-        metadata:
-          name: notImportantHere
-        labels:
-          argocd.argoproj.io/instance: helios-argocd
-        fieldSpecs:
-          - path: metadata/labels
-            create: true

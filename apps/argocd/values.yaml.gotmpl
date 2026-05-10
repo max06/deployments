@@ -15,18 +15,14 @@ extraObjects:
   - apiVersion: v1
     kind: Secret
     metadata:
-      annotations:
-        managed-by: argocd.argoproj.io
-      labels:
-        argocd.argoproj.io/secret-type: cluster
-        clusterGroup: cyrannus
-        clusterId: helios
-        environmentId: cyrannus
-      name: cluster-kubernetes.default.svc
+      name: argocd-age-secret-keys
       namespace: argocd
     type: Opaque
     stringData:
-      config: |
-        {"tlsClientConfig":{"insecure":false}}
-      name: cyrannus-helios
-      server: "https://kubernetes.default.svc"
+      keys.txt: |
+        {{ .Values.ageSecretKey }}
+{{- if hasKey .Values "extra" }}
+  {{- range $k, $v := .Values.extra }}
+  - {{ $v | toYaml | nindent 4 }}
+  {{- end }}
+{{- end }}

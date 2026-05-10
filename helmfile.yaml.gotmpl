@@ -1,9 +1,13 @@
+# code: language=helm
+
 environments:
   default:
     values:
       - repoUrl: https://github.com/max06/deployments
       - baseDir: clusters
+
 ---
+
 helmfiles:
   - path: clusters/in-cluster/apps/argocd/helmfile.yaml.gotmpl
 
@@ -16,3 +20,13 @@ releases:
     chart: argo/argocd-apps
     values:
       - appSets.yaml.gotmpl
+
+---
+
+helmfiles:
+  - path: git::https://github.com/max06/atlas.git@helmfile.yaml.gotmpl?ref=v0.4.0
+    values:
+      - atlas:
+          appTemplates: apps
+          deploymentDefinitions: clusters
+          cwd: {{ exec "pwd" (list) }}
