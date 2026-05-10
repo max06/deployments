@@ -1,0 +1,6 @@
+apps:
+  - template: open-webui
+
+settings:
+  branch: main
+  autoSync: false
