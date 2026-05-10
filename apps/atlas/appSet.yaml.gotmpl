@@ -1,0 +1,82 @@
+applicationsets:
+  atlas:
+    namespace: argocd
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+    goTemplate: true
+    goTemplateOptions: ["missingkey=invalid"]
+
+    syncPolicy:
+      applicationsSync: create-update
+
+    generators:
+
+      - matrix:
+          generators:
+            - clusters:
+                selector: {}
+                values:
+                  clusterGroup: "{{`{{ if .metadata.labels.clusterGroup }}{{ .metadata.labels.clusterGroup }}{{ end }}`}}"
+                  clusterName: "{{`{{ or .metadata.labels.clusterId .name }}`}}"
+                  clusterSlug: "{{`{{ if .metadata.labels.clusterGroup }}{{ .metadata.labels.clusterGroup }}-{{ end }}{{ or .metadata.labels.clusterId .name }}`}}"
+
+            - git:
+                repoURL: https://github.com/max06/deployments
+                revision: HEAD
+                files:
+                  # global - on every cluster
+                  - path: "clusters/apps/*/deployment.yaml"
+                  # per clusterGroup - on every cluster in a group
+                  - path: "clusters{{`/{{ .values.clusterGroup }}/apps/*/deployment.yaml*`}}"
+                  # on a specific single cluster, either grouped or ungrouped
+                  - path: "clusters{{`/{{ .values.clusterGroup }}/{{ .values.clusterName }}/apps/*/deployment.yaml*`}}"
+                  - path: "clusters/{{`{{ .values.clusterName }}`}}/apps/*/deployment.yaml"
+                values:
+                  appInstance: '{{ `{{ .path.basename }}` }}'
+                  appInstancePath: '{{ `{{ .path.path }}` }}'
+
+    template:
+      metadata:
+        name: "{{`{{ .values.clusterName }}-{{ .values.appInstance }}`}}"
+        annotations:
+          debug: "{{`{{ .values | toJson }}`}}"
+      spec:
+        project: default # {{`{{ get .settings "project" | default "default" }}`}}
+        destination:
+          name: "{{`{{ .values.clusterSlug }}`}}"
+          namespace: "{{`{{ or .settings.namespace .values.appInstance }}`}}"
+        syncPolicy:
+          syncOptions:
+            - CreateNamespace=true
+          automated:
+            enabled: false
+            prune: true
+            allowEmpty: false
+            selfHeal: true
+          retry:
+            refresh: true
+    templatePatch: |
+      spec:
+        syncPolicy:
+          automated:
+            enabled: {{`{{ eq (get .settings "autosync" | default "false") "true" }}`}}
+        sources:
+          - repoURL: https://github.com/max06/deployments
+            targetRevision: {{`{{ get .settings "branch" | default "HEAD" }}`}}
+            path: .
+            plugin:
+              env:
+                {{`{{- if (or .settings.namespace false) }}`}}
+                - name: HELMFILE_USE_CONTEXT_NAMESPACE
+                  value: "true"
+                {{`{{- end }}`}}
+                - name: HELMFILE_GLOBAL_OPTIONS
+                  value: "--selector {{`{{ if .values.clusterGroup }}`}}clusterGroup={{`{{ .values.clusterGroup }}`}},{{`{{ end }}`}}clusterName={{`{{ .values.clusterName }}`}},deploymentName={{`{{ .values.appInstance }}`}}"
+                - name: HELMFILE_TEMPLATE_OPTIONS
+                  value: "--skip-schema-validation --include-crds"
+                - name: HELM_TEMPLATE_OPTIONS
+                  value: "--skip-schema-validation --include-crds"
+        {{`{{- if (or .settings.ignoreDifferences false) }}`}}
+        ignoreDifferences:
+          {{`{{ .settings.ignoreDifferences | toYaml | nindent 6 }}`}}
+        {{`{{- end }}`}}

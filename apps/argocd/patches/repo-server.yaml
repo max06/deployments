@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
         - name: helmfile-plugin
-          image: travisghansen/argo-cd-helmfile:latest
+          image: ghcr.io/ivx/argo-cd-helmfile:0.0.1
           command: [/var/run/argocd/argocd-cmp-server]
           securityContext:
             runAsNonRoot: true

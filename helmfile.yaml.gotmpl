@@ -1,18 +1,9 @@
-environments:
-  default:
-    values:
-      - repoUrl: https://github.com/max06/deployments
-      - baseDir: clusters
----
-helmfiles:
-  - path: clusters/in-cluster/apps/argocd/helmfile.yaml.gotmpl
+# code: language=helm
 
-repositories:
-  - name: argo
-    url: https://argoproj.github.io/argo-helm
-releases:
-  - name: root
-    namespace: argocd
-    chart: argo/argocd-apps
+helmfiles:
+  - path: git::https://github.com/max06/atlas.git@helmfile.yaml.gotmpl?ref=v0.4.0
     values:
-      - appSets.yaml.gotmpl
+      - atlas:
+          appTemplates: apps
+          deploymentDefinitions: clusters
+          cwd: {{ exec "pwd" (list) }}
