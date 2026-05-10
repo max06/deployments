@@ -1,6 +1,5 @@
 apps:
   - template: ollama-operator
-    namespace: ollama-operator-system
 
 settings:
   branch: main
