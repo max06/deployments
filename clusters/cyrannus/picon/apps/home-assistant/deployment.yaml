@@ -1,0 +1,6 @@
+apps:
+  - template: home-assistant
+
+settings:
+  branch: main
+  autoSync: false
