@@ -1,0 +1,6 @@
+apps:
+  - template: httpbin
+
+settings:
+  branch: main
+  autoSync: false
