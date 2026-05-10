@@ -1,0 +1,7 @@
+apps:
+  - template: kubevirt-operator
+  - template: kubevirt-cr
+
+settings:
+  branch: main
+  autoSync: false
