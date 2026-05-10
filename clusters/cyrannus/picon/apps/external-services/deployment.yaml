@@ -3,8 +3,7 @@ apps:
     name: proxmox
     namespace: external-services
     values:
-      - name: proxmox
-        targetHost: srv-pm01.srv.hive.internal
+      - targetHost: srv-pm01.srv.hive.internal
         targetPort: 8006
         dnsOverride: 192.168.30.241
         entrypoint: webinternal
