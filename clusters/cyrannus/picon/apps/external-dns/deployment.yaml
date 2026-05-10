@@ -1,0 +1,6 @@
+apps:
+  - template: external-dns
+
+settings:
+  branch: main
+  autoSync: false
