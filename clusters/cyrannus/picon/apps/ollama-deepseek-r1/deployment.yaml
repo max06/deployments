@@ -1,0 +1,6 @@
+apps:
+  - template: ollama-deepseek-r1-8b
+
+settings:
+  branch: main
+  autoSync: false
