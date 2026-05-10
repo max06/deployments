@@ -8,7 +8,9 @@ releases:
     chart: n8n/n8n
     version: 2.0.1
     values:
-      - main:
+      - image:
+          tag: 1.108.2
+        main:
           config:
             host: "n8n.{{ .Values.primary_domain }}"
             n8n:
