@@ -116,39 +116,36 @@ def main():
         ["install kubeswitch"]
     )
     runner.add_task(
-        "install ytt", "sudo eget carvel-dev/ytt --to /usr/local/bin/ytt"
+        "install ytt", "sudo -E eget carvel-dev/ytt --to /usr/local/bin/ytt"
     )
     runner.add_task(
-        "install vendir", "sudo eget carvel-dev/vendir --to /usr/local/bin/vendir"
+        "install vendir", "sudo -E eget carvel-dev/vendir --to /usr/local/bin/vendir"
     )
     runner.add_task(
-        "install sops", "sudo eget getsops/sops -a '^sbom' --to /usr/local/bin/sops"
+        "install sops", "sudo -E eget getsops/sops -a '^sbom' --to /usr/local/bin/sops"
     )
     runner.add_task(
-        "install age", "sudo eget FiloSottile/age --to /usr/local/bin/age"
+        "install age", "sudo -E eget FiloSottile/age -a '^proof' --to /usr/local/bin/age"
     )
     runner.add_task(
         "install helmfile", [
-            "sudo eget helmfile/helmfile --to /usr/local/bin/helmfile", "helmfile init --force"]
-    )
-    runner.add_task(
-        "install cdk8s", "npm install -g cdk8s-cli"
+            "sudo -E eget helmfile/helmfile --to /usr/local/bin/helmfile", "helmfile init --force"]
     )
 
     runner.add_task(
         "install krew", '''
-            set -x; cd "$(mktemp -d)" &&
-            OS="$(uname | tr '[:upper:]' '[:lower:]' )" &&
-            ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\\(arm\\)\\(64\\)\\?.*/\\1\\2/' -e 's/aarch64$/arm64/')" &&
-            KREW="krew-${OS}_${ARCH}" &&
-            curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
-            tar zxvf "${KREW}.tar.gz" &&
-            ./"${KREW}" install krew
+            cd "$(mktemp -d)" &&
+            eget kubernetes-sigs/krew --to ./krew &&
+            ./krew install krew
         '''
     )
 
     runner.add_task(
         "install kubevirt cli", "kubectl krew install virt", ["install krew"]
+    )
+
+    runner.add_task(
+        "install dyff", "sudo -E eget homeport/dyff --to /usr/local/bin/dyff"
     )
 
     success = runner.run_tasks()

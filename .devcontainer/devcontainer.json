@@ -3,16 +3,23 @@
 {
 	"name": "Python 3",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/python:2-3-bookworm",
+	"image": "mcr.microsoft.com/devcontainers/python:3.13-trixie",
 	"features": {
-		"ghcr.io/devcontainers-contrib/features/argo-cd:1": {},
-		"ghcr.io/devcontainers-contrib/features/argo-workflows:1": {},
-		"ghcr.io/devcontainers-contrib/features/eget:1": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/argo-cd:1": {},
+		"ghcr.io/devcontainers-extra/features/argo-workflows:1": {},
+		"ghcr.io/devcontainers-extra/features/eget:1": {},
 		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
 		"ghcr.io/mpriscella/features/helm-chart-testing:1": {},
 		"ghcr.io/audacioustux/devcontainers/k9s:1": {},
 		"ghcr.io/devcontainers/features/node:1": {},
-		"ghcr.io/rio/features/kustomize:1": {}
+		"ghcr.io/rio/features/kustomize:1": {},
+		"ghcr.io/devcontainers/features/go:1": {
+			"golangciLintVersion": "2.11.4"
+		},
+		"ghcr.io/szkiba/devcontainer-features/bats:1": {},
+		"ghcr.io/brokenpip3/devcontainers-bats/bats-libs:0": {},
+		"ghcr.io/devcontainer-community/devcontainer-features/yq:1": {}
 	},
 	"customizations": {
 		"vscode": {
@@ -24,10 +31,20 @@
 		}
 	},
 	"remoteEnv": {
-		"PATH": "/home/vscode/.krew/bin:${containerEnv:PATH}"
+		"PATH": "/home/vscode/.krew/bin:/home/vscode/.local/bin:${containerEnv:PATH}",
+		"ANTHROPIC_MODEL": "claude-opus-4-6"
 	},
 	"mounts": [
-		// mount kubeconfig
+		{
+			"source": "${localEnv:HOME}${localEnv:USERPROFILE}/.claude.json",
+			"target": "/home/vscode/.claude.json",
+			"type": "bind"
+		},
+		{
+			"source": "${localEnv:HOME}${localEnv:USERPROFILE}/.claude",
+			"target": "/home/vscode/.claude",
+			"type": "bind"
+		}
 	],
 	// add --network=host to docker run
 	"runArgs": [],
