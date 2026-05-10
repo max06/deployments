@@ -1,0 +1,12 @@
+name: ATLAS Review
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  review:
+    uses: max06/atlas/.github/workflows/snapshot-review.yml@main
+    with:
+      helmfile-path: helmfile.yaml.gotmpl
+    secrets:
+      sops-age-key: ${{ secrets.SOPS_AGE_KEY }}
