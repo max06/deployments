@@ -31,6 +31,8 @@ apps:
               config: |
                 {"tlsClientConfig":{"insecure":false}}
               server: "https://kubernetes.default.svc"
+  - template: atlas
+
 settings:
   branch: main
   autoSync: false
