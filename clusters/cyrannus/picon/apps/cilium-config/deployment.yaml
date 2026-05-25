@@ -1,0 +1,6 @@
+apps:
+  - template: cilium-config
+
+settings:
+  branch: main
+  autoSync: false

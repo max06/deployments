@@ -1,3 +1,0 @@
----
-helmfiles:
-  - path: ../../../../../apps/open-webui/helmfile.yaml

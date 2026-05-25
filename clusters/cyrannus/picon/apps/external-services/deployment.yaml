@@ -1,0 +1,17 @@
+apps:
+  - template: external-service
+    name: proxmox
+    namespace: external-services
+    values:
+      - targetHost: srv-pm01.srv.hive.internal
+        targetPort: 8006
+        dnsOverride: 192.168.30.241
+        entrypoint: webinternal
+        host: "proxmox.{{ .Values.primary_domain }}"
+        scheme: https
+        passHostHeader: false
+        serversTransport: traefik-insecure@kubernetescrd
+
+settings:
+  branch: main
+  autoSync: false

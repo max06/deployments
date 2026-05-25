@@ -1,3 +1,0 @@
----
-helmfiles:
-  - path: ../../../../../apps/longhorn/helmfile.yaml

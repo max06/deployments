@@ -1,0 +1,6 @@
+apps:
+  - template: n8n
+
+settings:
+  branch: main
+  autoSync: false

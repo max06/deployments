@@ -1,5 +1,0 @@
----
-releases:
-  - name: kubevirt-cr
-    chart: ./kustomize
-

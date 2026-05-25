@@ -1,0 +1,32 @@
+repositories:
+  - name: pihole
+    url: https://mojo2600.github.io/pihole-kubernetes/
+
+releases:
+  - name: pihole
+    namespace: pihole
+    chart: pihole/pihole
+    version: 2.35.0
+    values:
+      - replicaCount: 1
+        serviceDhcp:
+          enabled: false
+        serviceDns:
+          type: LoadBalancer
+          mixedService: true
+          annotations:
+            "lbipam.cilium.io/ips": "192.168.30.240"
+          externalTrafficPolicy: Cluster
+        doh:
+          enabled: true
+        extraEnvVars:
+          FTLCONF_dns_listeningMode: all
+        persistentVolumeClaim:
+          enabled: true
+          size: "10Gi"
+        image:
+          tag: "2025.06.2"
+        ingress:
+          enabled: true
+          hosts:
+            - pihole.{{ .Values.primary_domain }}

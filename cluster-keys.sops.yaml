@@ -1,4 +1,6 @@
 cyrannus/picon: ENC[AES256_GCM,data:l4xB3frGNd+QyZmhB1Vyob0WjBHddxVpoZcwcgMPWCPTfTZTtIDbCJFHlL7h2YB6RGkP07Sh8kA0rpPPmpg4B7Xk2/51+F//XU4=,iv:161vc2XhUtWO65Ln+2HGi2sPvcHWwpnAjBR5UH1QK90=,tag:fEyc9L6XCd4lUga+1O9LoQ==,type:str]
+atlas: ENC[AES256_GCM,data:PQq9YrySBVMMA4tAvnw3eJ8/AalPJojleeG29VyTyBAYP7C+1pBVAuhWSZODiarzxPm2Jej0nDpQ+hgqS5VYRSOPo31Yye4id6c=,iv:AIUtDIQpeEpja3maLF61WYFHA8Pp1il4l+jyIVLywDw=,tag:5++zKoZlCguMPoXrDYykDg==,type:str]
+cyrannus/helios: ENC[AES256_GCM,data:7PLiboFb+Z1gD/h8GHBnjiAOnfKPFlyLmQGWfLtlSyrwO+s7JdGBK+LMjsTBLN6P6sNphPMMPUKBgPq/gfCANC36zT+MT4xvKJI=,iv:hjDDn+IJmacymvI5JSQ/qz8px8O0vGwLJYEEsjWjRjk=,tag:ahCvLfW7KsHWSw/ivQ9H2Q==,type:str]
 sops:
     age:
         - recipient: age1y7udc7lr39ekhxrdn54lrslmktzduw3594jdc9c9pgg6ej79r9jszgm4sw
@@ -10,8 +12,8 @@ sops:
             UDJta0h3cTkvb1FIeUxkbzU4VnYxalkKHM8S03Zj8C7QdoOqUSDNxk9YkUTBHS6c
             vC3W2KCFY3y8vQGHsn/DrTCkEsh1PgTMTZPvy52Ozjra8+j15H6/dw==
             -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2025-04-21T17:55:31Z"
-    mac: ENC[AES256_GCM,data:ZITi5kDIqZOy2z2H50d3CZz2GMqMLd6d2u8aFR3ANQnroVW0c78+2d9p1MZsD6KuWL1lC8ynAdBkDDzMIhGUitWiywR8v7i42XqfoYoWd1IqevQzpPYBSw31iH9zEWZCn62+xBr53dRDsyQ3hvh1joce1MjeEQSWCEzydkja4Og=,iv:twyYgV2zBWoAGhAAXdue2EfmZC7W2hndJC4rjXOTHaM=,tag:TGp/QEzLnnrWCxdfJ0sOrg==,type:str]
+    lastmodified: "2026-05-10T17:18:33Z"
+    mac: ENC[AES256_GCM,data:bt1IbwyFQ+PeGHWS6kkpi0o1iM7yGb/SGLM5ruLcIFajiHLhoG5fMy1bnB/3sewFxO4fAi6iiMkHQ0OCN9qS8XxayWdGWcYprOaxS+r1IIALZ0w63hITE+FeKP2mcZq4xika6nSBAW3L44UgsOMK/VYxFwgx64pfha4XgiMfwbw=,iv:URG8Y8r4zt7lFwJVgFta1lYIslt/qVdBp3FkEwvV+DY=,tag:cSe2yNJzOiihvSpDszhf8w==,type:str]
     pgp:
         - created_at: "2025-04-21T17:54:50Z"
           enc: |-
@@ -34,4 +36,4 @@ sops:
             -----END PGP MESSAGE-----
           fp: FAE80AAB28045B8BE8603DBD07E86793BA50B1F5
     unencrypted_suffix: _unencrypted
-    version: 3.10.2
+    version: 3.12.2

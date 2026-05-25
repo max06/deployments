@@ -1,0 +1,7 @@
+apps:
+  - template: rancher-to-argocd-controller
+    name: rancher-to-argocd-controller
+
+settings:
+  branch: main
+  autoSync: false

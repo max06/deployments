@@ -1,0 +1,6 @@
+apps:
+  - template: pihole
+
+settings:
+  branch: main
+  autoSync: false

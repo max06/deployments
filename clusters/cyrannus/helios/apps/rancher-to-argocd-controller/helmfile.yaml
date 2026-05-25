@@ -1,5 +1,0 @@
----
-helmfiles:
-  - path: ../../../../apps/rancher-to-argocd-controller/helmfile.yaml
-
-namespace: argocd

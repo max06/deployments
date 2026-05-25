@@ -1,0 +1,6 @@
+apps:
+  - template: ollama-phi-mini
+
+settings:
+  branch: main
+  autoSync: false
