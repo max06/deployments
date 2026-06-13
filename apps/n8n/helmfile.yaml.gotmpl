@@ -1,31 +1,32 @@
 repositories:
   - name: n8n
-    url: 8gears.container-registry.com/library
+    url: ghcr.io/n8n-io/n8n-helm-chart
     oci: true
 
 releases:
   - name: n8n
     chart: n8n/n8n
     namespace: n8n
-    version: 2.0.1
+    version: 1.9.0
     values:
-      - image:
-          tag: 1.108.2
-        main:
-          config:
-            host: "n8n.{{ .Values.primary_domain }}"
-            n8n:
-              editor_base_url: "https://n8n.{{ .Values.primary_domain }}"
-              license:
-                activation:
-                  key: "{{ .Values.license_activation_key }}"
-          secret:
-            n8n:
-              encryption_key: "{{ .Values.encryption_key }}"
-          persistence:
-            enabled: true
-            type: dynamic
-          resources:
+      - queueMode:
+          enabled: false
+        secretRefs:
+          env:
+            N8N_HOST: "n8n.{{ .Values.primary_domain }}"
+            N8N_PROTOCOL: "https"
+            N8N_ENCRYPTION_KEY: "{{ .Values.encryption_key }}"
+        license:
+          enabled: true
+          activationKey: "{{ .Values.license_activation_key }}"
+        config:
+          extraEnv:
+            - name: N8N_EDITOR_BASE_URL
+              value: "https://n8n.{{ .Values.primary_domain }}"
+        persistence:
+          enabled: true
+        resources:
+          main:
             limits:
               memory: 2048Mi
             requests:
@@ -34,5 +35,6 @@ releases:
           enabled: true
           hosts:
             - host: "n8n.{{ .Values.primary_domain }}"
-              paths: []
-          tls: []
+              paths:
+                - path: /
+                  pathType: Prefix
