@@ -2,6 +2,7 @@ apps:
   - template: external-service
     name: proxmox
     namespace: external-services
+    nameStyle: suffix
     values:
       - targetHost: srv-pm01.srv.hive.internal
         targetPort: 8006

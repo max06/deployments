@@ -1,6 +1,0 @@
-apps:
-  - template: ollama-operator
-
-settings:
-  branch: main
-  autoSync: false
