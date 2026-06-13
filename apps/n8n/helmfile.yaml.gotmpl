@@ -11,6 +11,10 @@ releases:
     values:
       - queueMode:
           enabled: false
+        database:
+          type: sqlite
+        redis:
+          enabled: false
         secretRefs:
           env:
             N8N_HOST: "n8n.{{ .Values.primary_domain }}"
@@ -25,6 +29,7 @@ releases:
               value: "https://n8n.{{ .Values.primary_domain }}"
         persistence:
           enabled: true
+          size: 5Gi
         resources:
           main:
             limits:
