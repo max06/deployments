@@ -4,4 +4,5 @@ apps:
 
 settings:
   branch: main
+  namespace: argocd
   autoSync: false
