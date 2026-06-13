@@ -5,7 +5,8 @@ metadata:
 spec:
   configuration:
     developerConfiguration:
-      featureGates: []
+      featureGates:
+        - LiveMigration
     vmRolloutStrategy: LiveUpdate
   infra:
     nodePlacement:

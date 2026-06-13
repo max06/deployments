@@ -21,7 +21,6 @@ releases:
       - apiVersion: networking.k8s.io/v1
         kind: Ingress
         metadata:
-          namespace: httpbin
           name: httpbin-httpbingo
           annotations:
             traefik.ingress.kubernetes.io/router.entrypoints: websecure
