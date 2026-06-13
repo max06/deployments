@@ -21,9 +21,9 @@ apps:
                 managed-by: argocd.argoproj.io
               labels:
                 argocd.argoproj.io/secret-type: cluster
-                clusterId: mgmt
+                clusterId: helios
                 clusterGroup: cyrannus
-              name: argocd-cluster-mgmt
+              name: argocd-cluster-helios
               namespace: argocd
             type: Opaque
             stringData:
