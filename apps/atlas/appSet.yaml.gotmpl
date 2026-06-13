@@ -66,10 +66,8 @@ applicationsets:
             path: .
             plugin:
               env:
-                {{`{{- if (or .settings.namespace false) }}`}}
                 - name: HELMFILE_USE_CONTEXT_NAMESPACE
                   value: "true"
-                {{`{{- end }}`}}
                 - name: HELMFILE_GLOBAL_OPTIONS
                   value: "--selector {{`{{ if .values.clusterGroup }}`}}clusterGroup={{`{{ .values.clusterGroup }}`}},{{`{{ end }}`}}clusterName={{`{{ .values.clusterName }}`}},deploymentName={{`{{ .values.appInstance }}`}}"
                 - name: HELMFILE_TEMPLATE_OPTIONS
