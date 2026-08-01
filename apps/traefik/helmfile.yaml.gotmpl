@@ -39,6 +39,9 @@ releases:
             transport:
               respondingTimeouts:
                 readTimeout: 0
+            http:
+              encodedCharacters:
+                allowEncodedHash: true
           webinternal: # 192.168.30.241
             port: 8444
             exposedPort: 443
@@ -53,6 +56,9 @@ releases:
             transport:
               respondingTimeouts:
                 readTimeout: 0
+            http:
+              encodedCharacters:
+                allowEncodedHash: true
 
         service:
           type: LoadBalancer
