@@ -94,3 +94,42 @@ extra:
         ports:
           - port: 9000
             name: http
+
+
+    # Matrix well-known delegation via redirect — no pod, no plugin.
+    # Replace example.net with your domain.
+    #
+    # Synapse side (homeserver.yaml):
+    #   public_baseurl: "https://matrix.example.net/"
+    #   serve_server_wellknown: true
+  - apiVersion: traefik.io/v1alpha1
+    kind: Middleware
+    metadata:
+      name: matrix-wellknown-
+      namespace: traefik
+    spec:
+      redirectRegex:
+        regex: '^https://{{ .Values.primary_domain | replace "." "\\." }}/\.well-known/matrix/(.*)'
+        replacement: 'https://matrix.{{ .Values.primary_domain }}/.well-known/matrix/${1}'
+        # 302, deliberately: permanent redirects get cached by intermediaries,
+        # which makes future delegation changes unpleasant to roll out.
+        permanent: false
+    ---
+    apiVersion: traefik.io/v1alpha1
+    kind: IngressRoute
+    metadata:
+      name: matrix-wellknown
+      namespace: traefik
+    spec:
+      entryPoints:
+        - websecure
+        - webinternal
+      routes:
+        - kind: Rule
+          match: Host(`{{ .Values.primary_domain }}`) && PathPrefix(`/.well-known/matrix`)
+          middlewares:
+            - name: matrix-wellknown-redirect
+          services:
+            - name: noop@internal
+              kind: TraefikService
+      # no tls block needed: your default cert covers the apex SAN
