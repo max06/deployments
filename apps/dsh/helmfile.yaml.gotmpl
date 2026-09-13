@@ -73,6 +73,20 @@ releases:
         credentials:
           existingSecret: '{{ if .Values | getOrNil "deepseek_api_key" }}dsh-credentials{{ end }}'
 
+        # Container args. Restates the chart default (web + community patch +
+        # --no-open) because the list replaces wholesale, then adds the
+        # authority we serve on. Upstream fences every /api request (REST and
+        # the /api/remote.mux websocket) behind a Host/Origin allowlist that
+        # only admits loopback by default; without --trusted-host the UI loads
+        # but the websocket upgrade is refused and the app never connects.
+        args:
+          - web
+          - --patch
+          - /opt/deepseek-harness/web.cordis.patch.yml
+          - --no-open
+          - --trusted-host
+          - "dsh.{{ .Values.primary_domain }}"
+
         resources:
           requests:
             cpu: 250m
