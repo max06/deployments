@@ -1,0 +1,81 @@
+# DeepSeek Harness (dsh) — single-user agent harness with a web UI.
+#
+# Upstream ships no container or chart; this uses the community chart from
+# runzhliu/deepseek-harness-docker, pulled straight from git at a release tag.
+# Pin the git ref and image.tag together — the chart's appVersion tracks the
+# image, and upstream warns about compatibility-breaking changes between
+# pre-releases.
+#
+# Access model: the community image binds 0.0.0.0 inside the pod but expects
+# a trusted boundary in front. We provide that boundary with traefik's
+# webinternal entrypoint (LAN-only ipAllowList middleware). Only the web UI
+# port is routed; the embedded noVNC desktop (6080) has no authentication and
+# stays reachable via `kubectl port-forward` only.
+#
+# First login: the web UI issues a per-process launch token. Grab the URL from
+#   kubectl -n dsh logs sts/dsh | grep 'dsh web:'
+# and swap the 127.0.0.1:3080 part for https://dsh.<primary_domain>.
+#
+# Provider credentials are optional at deploy time (they can be entered in the
+# web UI settings). To ship them via SOPS instead, set `deepseek_api_key` in a
+# values.sops.yaml next to the deployment — a Secret is then created and wired
+# into the pod as an environment variable.
+
+repositories:
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+
+releases:
+  # Ingress, workspace PVC and optional credentials Secret. Listed first so
+  # the PVC and Secret exist before the StatefulSet pod references them.
+  - name: dsh-extras
+    namespace: dsh
+    chart: bedag/raw
+    version: 2.0.2
+    values:
+      - extras.yaml.gotmpl
+
+  - name: dsh
+    namespace: dsh
+    chart: git::https://github.com/runzhliu/deepseek-harness-docker.git@charts/deepseek-harness?ref=image-v0.1.5-rc.2-r1
+    values:
+      - image:
+          repository: ghcr.io/runzhliu/deepseek-harness
+          tag: 0.1.5-rc.2-r1
+
+        # Stable resource names regardless of how the release name is derived,
+        # so extras.yaml.gotmpl can target the Service and Secret by name.
+        fullnameOverride: dsh
+
+        # dsh state (profiles, settings, credentials, sessions).
+        persistence:
+          size: 5Gi
+
+        # Agent working directory. The chart only mounts an emptyDir here
+        # unless given a claim, so uncommitted work would vanish on every
+        # reschedule. The PVC is created in extras.yaml.gotmpl.
+        workspace:
+          existingClaim: dsh-workspace
+
+        # The chart defaults to deny-all ingress (port-forward only). Open
+        # exactly one hole: traefik pods → the web UI port. noVNC stays closed.
+        networkPolicy:
+          enabled: true
+          ingress:
+            - from:
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: traefik
+              ports:
+                - port: http
+                  protocol: TCP
+
+        credentials:
+          existingSecret: '{{ if .Values | getOrNil "deepseek_api_key" }}dsh-credentials{{ end }}'
+
+        resources:
+          requests:
+            cpu: 250m
+            memory: 1Gi
+          limits:
+            memory: 4Gi

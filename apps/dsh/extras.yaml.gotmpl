@@ -1,0 +1,52 @@
+# Rendered by the bedag/raw chart. Companion resources for the dsh release.
+resources:
+  # Route dsh.<primary_domain> → the chart's headless Service on the web UI
+  # port. Restricted to the webinternal entrypoint so the LAN ipAllowList
+  # middleware applies; nothing is published on the public entrypoint.
+  - apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: dsh
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: webinternal
+        # Point external-dns at the internal traefik LoadBalancer explicitly;
+        # traefik does not publish the LB address into Ingress status here.
+        external-dns.alpha.kubernetes.io/target: 192.168.30.241
+    spec:
+      rules:
+        - host: "dsh.{{ .Values.primary_domain }}"
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: dsh
+                    port:
+                      name: http
+
+  # Persistent /workspace for the agent. Kept outside the StatefulSet's
+  # volumeClaimTemplates on purpose: a standalone PVC survives release
+  # deletion and can be re-attached or resized independently of dsh-home.
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: dsh-workspace
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+
+{{- if .Values | getOrNil "deepseek_api_key" }}
+  # Every key in this Secret becomes an environment variable in the pod
+  # (chart behaviour via credentials.existingSecret).
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: dsh-credentials
+    type: Opaque
+    stringData:
+      DEEPSEEK_API_KEY: {{ .Values.deepseek_api_key | quote }}
+{{- end }}
