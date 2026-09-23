@@ -28,6 +28,9 @@ releases:
         persistence:
           enabled: true
           size: 5Gi
+        taskRunners:
+          authToken:
+            existingSecret: "unused"
         resources:
           main:
             limits:
