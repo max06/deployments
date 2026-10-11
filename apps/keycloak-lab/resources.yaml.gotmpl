@@ -1,0 +1,114 @@
+{{- $host := printf "idp-lab.%s" .Values.primary_domain -}}
+{{- $rancher := .Values | get "rancherUrl" "https://rancher.192.168.27.90.sslip.io" -}}
+resources:
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: keycloak-lab
+    type: Opaque
+    stringData:
+      KC_BOOTSTRAP_ADMIN_PASSWORD: {{ .Values.keycloak_admin_password | quote }}
+      RANCHER_CLIENT_SECRET: {{ .Values.keycloak_rancher_client_secret | quote }}
+      DORA_PASSWORD: {{ .Values.keycloak_dora_password | quote }}
+      ERIC_PASSWORD: {{ .Values.keycloak_eric_password | quote }}
+
+  # ${VAR} placeholders are replaced by Keycloak from the container env on import.
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: keycloak-lab-realm
+    data:
+      lab-realm.json: |
+        {
+          "realm": "lab", "enabled": true,
+          "groups": [{"name": "team-a"}, {"name": "readers"}],
+          "users": [
+            {"username": "dora", "enabled": true, "email": "dora@lab.invalid", "emailVerified": true,
+             "firstName": "Dora", "lastName": "TeamA", "groups": ["/team-a"],
+             "credentials": [{"type": "password", "value": "${DORA_PASSWORD}"}]},
+            {"username": "eric", "enabled": true, "email": "eric@lab.invalid", "emailVerified": true,
+             "firstName": "Eric", "lastName": "Reader", "groups": ["/readers"],
+             "credentials": [{"type": "password", "value": "${ERIC_PASSWORD}"}]}
+          ],
+          "clients": [{
+            "clientId": "rancher", "enabled": true, "publicClient": false,
+            "secret": "${RANCHER_CLIENT_SECRET}",
+            "standardFlowEnabled": true, "directAccessGrantsEnabled": false,
+            "redirectUris": ["{{ $rancher }}/verify-auth"],
+            "protocolMappers": [{
+              "name": "groups", "protocol": "openid-connect",
+              "protocolMapper": "oidc-group-membership-mapper",
+              "config": {"full.path": "false", "id.token.claim": "true", "access.token.claim": "true",
+                         "userinfo.token.claim": "true", "claim.name": "groups"}
+            }]
+          }]
+        }
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: keycloak-lab
+    spec:
+      replicas: 1
+      selector:
+        matchLabels: {app: keycloak-lab}
+      template:
+        metadata:
+          labels: {app: keycloak-lab}
+          annotations:
+            # restart on realm or secret changes (dev mode re-imports on start)
+            checksum/realm: {{ $rancher | sha256sum | trunc 12 | quote }}
+        spec:
+          containers:
+            - name: keycloak
+              image: quay.io/keycloak/keycloak:26.4.0
+              args: ["start-dev", "--import-realm"]
+              env:
+                - {name: KC_HOSTNAME, value: "https://{{ $host }}"}
+                - {name: KC_PROXY_HEADERS, value: xforwarded}
+                - {name: KC_HTTP_ENABLED, value: "true"}
+                - {name: KC_BOOTSTRAP_ADMIN_USERNAME, value: admin}
+              envFrom:
+                - secretRef: {name: keycloak-lab}
+              ports:
+                - {containerPort: 8080, name: http}
+              readinessProbe:
+                httpGet: {path: /realms/lab, port: http}
+                initialDelaySeconds: 20
+                periodSeconds: 5
+              resources:
+                requests: {cpu: 100m, memory: 512Mi}
+                limits: {memory: 1Gi}
+              volumeMounts:
+                - {name: realm, mountPath: /opt/keycloak/data/import}
+          volumes:
+            - name: realm
+              configMap: {name: keycloak-lab-realm}
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: keycloak-lab
+    spec:
+      selector: {app: keycloak-lab}
+      ports:
+        - {name: http, port: 80, targetPort: http}
+
+  - apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: keycloak-lab
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: webinternal
+        external-dns.alpha.kubernetes.io/target: 192.168.30.241
+    spec:
+      rules:
+        - host: {{ $host | quote }}
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: keycloak-lab
+                    port: {name: http}

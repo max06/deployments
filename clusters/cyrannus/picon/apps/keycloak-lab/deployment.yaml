@@ -1,0 +1,8 @@
+# TEST identity provider for a lab Rancher (Rancher as OIDC provider). Temporary.
+apps:
+  - template: keycloak-lab
+
+settings:
+  namespace: keycloak-lab
+  branch: main
+  autoSync: false

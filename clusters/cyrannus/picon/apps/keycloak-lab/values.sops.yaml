@@ -1,0 +1,58 @@
+keycloak_admin_password: ENC[AES256_GCM,data:vuePaNTbYHwHe7vOjPJgHO+EuHcbUvMuRXDabA==,iv:7PApRmP+oNK8KVNGgIzM8fBs6bpw4BiLM34sX+o2gZs=,tag:v7af4RQvaPaNkw2RMYia+A==,type:str]
+keycloak_rancher_client_secret: ENC[AES256_GCM,data:eEBB5XYi9oL45efIMnAHUkXdgChY/6zf5G5ftA==,iv:3Ll3jewZ+5sPahqr7I7LWoNBjUluqY7DDO+ymLKoL28=,tag:ADmpXz/Brrm5E/eP83yKAw==,type:str]
+keycloak_dora_password: ENC[AES256_GCM,data:yek1A1GTopg7LNzU7oCGy1BWvcaAzbMErJLrFQ==,iv:oUZM6PZ2k9dFNbEQ4fnC0aeLnUqIU2HqZaEJEOLjdcc=,tag:ckzqeGWeV6yrNCmhWEA2eA==,type:str]
+keycloak_eric_password: ENC[AES256_GCM,data:Sm5qS8N74eVL3R2fwOylaj9DV5/w+CFc7gjMcg==,iv:cfOch/i9eC8qciMgANSsA2QZ8+NNW7om3rsLeestP5o=,tag:B19aoR7RRVNETy36R9/g4Q==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBKdVRLSGdNcUVNQkY2NTVO
+            ZTBkSmFYSjAzUW9Yb2U3VlNZdEFiekZlR2g4CmRxeW01YVQwUUlaRzV1dCtiVTM5
+            WmVXZ2ZXMDNuRis5bzM1NWVjcEUyaXcKLS0tIFM2ckhVbjJwZDdEbmlHUXJnM3h6
+            aERaSVR2RnhBU2ZQRlN5K3p3ZzlubDgK8SZm/SVH5m1Wjf62V5dM1W2TbLGao0zB
+            69DULrNVREfbuCt2VewFDQCKKQ0ULT7TRR65PnFKAPKIJvnfYYPuHw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1y7udc7lr39ekhxrdn54lrslmktzduw3594jdc9c9pgg6ej79r9jszgm4sw
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBsQWFRWXBacFhCcm9Bd1Rl
+            LzFETmlQQmVPQThjMmdsT25TYWUwUlVXdjFNClBIS0lsN1g4N3lFMmRKR1p1MHMr
+            eGM5TUk1bVJzUGxoUHJ1MVMrZEhTZzgKLS0tIEtCdDJ3Q0llaTlFUFhJbFJVZEFP
+            QjF4bjF2VmpCaDFaVmRpUFdJbjRKa2MKBpll6jb+bN33J1YaVTZevYlt5e9wRkfN
+            rFKm9pjNmZQZKU0+S9piCSMq4uhXwJJH0r2+akR5AV2eloepyo42gA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1pr4x8umup43rypmp3z4u2t504q3cyhf9tqzuzugwh7ay0r0umq5qzxkrfn
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBNd256dWNUTExoQmVadk4x
+            QVhNc0hHeGE1NU4yNGVnRmRsMGpKSGZVbnp3ClBFemNCa0FycWxOcEMyVXI2Z2oy
+            VVoxVDcvRzg4WkFEUVVFcE5FNTEzM3MKLS0tIE1CaVQ0eUxjcUcrN0ViWnozZWdR
+            c2oyYUEzVlFBUzZEa2ZCMFc0dm1lNlUKwibUabSMmw6PYwf7LnZGuYh2u9xZZ8Tv
+            6VOOX5etGAJKB8TX8Jj5fx4dWuuYHKjV0qqjYmfD2hIq0hHh4RleaQ==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1kjh0myksatp45tqsvk59zsgh4kyfhm5q4u97jcwaww0vm74l4fjsad0epw
+    lastmodified: "2026-10-11T12:14:27Z"
+    mac: ENC[AES256_GCM,data:3ETauaN/mGYT8B2EojdJ8FTBjOvcviD8XjVBz7PzONTG1yTDC9TL+oX2/FOnAt3EAU3iH4fCO7OHkQsBZI6OoqtRvJOnMY9Z1r/IQBhz898GVc06RYMIWIOyCHFMxY3GAAi3x1NRRDwPBzwpSFz+Nwjism+Jnpp4nE//I03KsWw=,iv:GXYaq795W0gknqCGCd0NlKJ/gr8Fi8LG+JEMtam2/cU=,tag:/6bCJPTUtOJ/OaVrZq5Dyw==,type:str]
+    pgp:
+        - created_at: "2026-10-11T12:14:27Z"
+          enc: |-
+            -----BEGIN PGP MESSAGE-----
+
+            hQIMA3l5YWXaEkdcAQ/9FdsAmO5Njzl1rqhc7XcGnZYcC5V43pl6LMdPEAcrs2ni
+            IAIujmMgrLd3w+M92No3BDkGbUq2kkk3nG6ZgrDVKQbeXw5HhVMB/Bq8FX9KOJMF
+            cR56Qo0J9DOXcYLjZhcNIz/rfFk4HmIs2oiI5CqDSjXO0HKa8RXrddnzHwJc65DY
+            vqmmeNwYvxQzxSrVPfdQNaV1Yx+xIvbmdgW3JGMbxMtKfFUPnNbiGENy76OF/6OM
+            x+Eh/JtGIxNtVoCLnpnpyIP98y8fBLh762yjrpWfkr5WCgez/D58Bul6/N5cVzZL
+            57cK/OFiuVlOrfCYX4mMVKoZM93j2ZmylQqDc+fOcf7Mj1idEQuvUsGT5dZnt8eE
+            ZRLSTZqbzmy5zH8gPeJF1K0pfgSZggu0ypBfpWgHCAL7BNlHxh1DLNd9Njks5ubw
+            8Si7jrZa/5mY+ngMltocS/DRly4/3yMf92uc7+V9tu0ZdZWnQpcaVMuM4pWE2vTc
+            cElc0t0AIwO6JU5HL9jnoI/ijjOnWZ1HrmyuGOLiSEvoOFmKvBfF4vGP3iuK09Ia
+            ABzOvStZ+oRLpNIfniWUQc2Rc5HasRddLTzIRVpQlGpWMYSIYazHIaQN5IDLj2Km
+            gRAb6bBXYCVGmeXMQRGK5wG59dDm3OggtSV6ZZnu2znoarfE7+L8bhlA0+3wa4LS
+            XgGFAUob9en2dsccbAY1+k9RiuGu+PUI6vynrjIp0+ePISe7+Y8LIUZra8t974qa
+            7tJTDVwEzByUy7jsDaUbT/QSu4M8m4foEwU2HHHnIGQHPXNaoULGsnxrkUntXvE=
+            =290j
+            -----END PGP MESSAGE-----
+          fp: FAE80AAB28045B8BE8603DBD07E86793BA50B1F5
+    unencrypted_suffix: _unencrypted
+    version: 3.13.3
