@@ -1,0 +1,34 @@
+# Homepage content for picon. Rendered as a hierarchy gotmpl so host names
+# can use the SOPS-encrypted primary_domain.
+#
+# `namespace` + `app` link a tile to its pods (matched on the
+# app.kubernetes.io/name label): the tile then shows pod status and CPU/memory
+# from metrics-server. https://gethomepage.dev/configs/services/
+homepageConfig:
+  settings:
+    title: picon
+
+  services:
+    - Home:
+        - Home Assistant:
+            href: "https://home.{{ .Values.primary_domain }}"
+            icon: home-assistant.png
+            namespace: home-assistant
+            app: home-assistant
+    - Automation & AI:
+        - n8n:
+            href: "https://n8n.{{ .Values.primary_domain }}"
+            icon: n8n.png
+            namespace: n8n
+            app: n8n
+        - DeepSeek Harness:
+            href: "https://dsh.{{ .Values.primary_domain }}"
+            icon: mdi-robot-outline
+            namespace: dsh
+            app: deepseek-harness
+    - Network:
+        - Pi-hole:
+            href: "https://pihole.{{ .Values.primary_domain }}/admin"
+            icon: pi-hole.png
+            namespace: pihole
+            app: pihole

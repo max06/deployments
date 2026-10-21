@@ -1,0 +1,35 @@
+# Rendered by the bedag/raw chart. Entries under `templates` go through
+# helm's `tpl` against the FINAL merged release values, so `homepageConfig`
+# overrides from every ATLAS level are visible here.
+#
+# This file is plain YAML on purpose: helmfile does not template it, so the
+# `{{ }}` below reach helm untouched. Renaming it to .gotmpl would make
+# helmfile evaluate them first (and fail on `.Values.homepageConfig`).
+#
+# Every file homepage expects must exist in the ConfigMap: the mount is
+# read-only, and homepage exits if it cannot copy a missing skeleton file.
+templates:
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: homepage-config
+    data:
+      settings.yaml: |
+        {{- toYaml .Values.homepageConfig.settings | nindent 4 }}
+      kubernetes.yaml: |
+        {{- toYaml .Values.homepageConfig.kubernetes | nindent 4 }}
+      widgets.yaml: |
+        {{- toYaml .Values.homepageConfig.widgets | nindent 4 }}
+      services.yaml: |
+        {{- toYaml .Values.homepageConfig.services | nindent 4 }}
+      bookmarks.yaml: |
+        {{- toYaml .Values.homepageConfig.bookmarks | nindent 4 }}
+      docker.yaml: |
+        {{- toYaml .Values.homepageConfig.docker | nindent 4 }}
+      proxmox.yaml: |
+        {{- toYaml .Values.homepageConfig.proxmox | nindent 4 }}
+      custom.css: |
+        {{- .Values.homepageConfig.customCss | nindent 4 }}
+      custom.js: |
+        {{- .Values.homepageConfig.customJs | nindent 4 }}

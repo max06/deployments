@@ -1,0 +1,92 @@
+# Homepage (https://gethomepage.dev) — a static dashboard with service
+# links, status checks and info widgets.
+#
+# Chart: M0NsTeRRR/helm-charts (OCI, ghcr.io). Tracks upstream homepage
+# releases closely and ships the ClusterRole the kubernetes integration needs
+# (namespaces, pods, nodes, ingresses, IngressRoutes, HTTPRoutes, metrics).
+# The chart's appVersion pins the image, so bumping the chart bumps homepage.
+#
+# The chart does not manage homepage's config files — /app/config is an
+# emptyDir that homepage fills with its sample skeleton on start. Instead,
+# the homepage-extras release renders the config files into a ConfigMap from
+# the `homepageConfig` values key (see config.yaml for defaults and
+# configmap.yaml for the mapping). The ConfigMap is mounted as a directory
+# and homepage is pointed at it via HOMEPAGE_CONFIG_DIR. A directory mount
+# (unlike subPath mounts) receives ConfigMap updates in place, and homepage
+# re-reads its config files per request — so config changes go live within
+# the kubelet sync period, without a pod restart.
+#
+# Customizing: override any `homepageConfig.*` key at any ATLAS level
+# (deployment values.yaml / values.yaml.gotmpl, apps[].values, …). Maps
+# deep-merge; lists (services, bookmarks, widgets) replace wholesale.
+#
+# Access model: internal only. The ingress is bound to traefik's webinternal
+# entrypoint (LAN-only ipAllowList middleware), same as dsh. No auth.
+
+repositories:
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+  - name: m0nsterrr
+    url: ghcr.io/m0nsterrr/helm-charts
+    oci: true
+
+releases:
+  # Config files for homepage. Listed first so the ConfigMap exists before
+  # the Deployment's pod references it.
+  - name: homepage-extras
+    namespace: homepage
+    chart: bedag/raw
+    version: 2.0.2
+    values:
+      - config.yaml
+      - configmap.yaml
+
+  - name: homepage
+    namespace: homepage
+    chart: m0nsterrr/homepage
+    version: 5.4.0
+    values:
+      - # Stable resource names regardless of how the release name is derived.
+        fullnameOverride: homepage
+
+        ingress:
+          enabled: true
+          annotations:
+            # LAN-only: route exclusively through the webinternal entrypoint.
+            traefik.ingress.kubernetes.io/router.entrypoints: webinternal
+            # Point external-dns at the internal traefik LoadBalancer
+            # explicitly; traefik does not publish the LB address into
+            # Ingress status here.
+            external-dns.alpha.kubernetes.io/target: 192.168.30.241
+          # Hosts listed here are also added to HOMEPAGE_ALLOWED_HOSTS by the
+          # chart (next to the in-cluster Service names and the pod IP used
+          # by the probes). Requests with any other Host header are rejected.
+          hosts:
+            - host: "h.{{ .Values.primary_domain }}"
+              paths:
+                - path: /
+                  pathType: Prefix
+
+        extraEnv:
+          # Read config from the ConfigMap mount instead of /app/config.
+          - name: HOMEPAGE_CONFIG_DIR
+            value: /app/config-managed
+
+        # /app/config (and /app/config/logs) stay the chart's writable
+        # emptyDirs; logs land there via `settings.logpath` in config.yaml,
+        # because the ConfigMap mount is read-only.
+        volumes:
+          - name: config-managed
+            configMap:
+              name: homepage-config
+        volumeMounts:
+          - name: config-managed
+            mountPath: /app/config-managed
+            readOnly: true
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 512Mi

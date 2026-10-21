@@ -1,0 +1,62 @@
+# Default homepage configuration. Each key under `homepageConfig` becomes one
+# file in homepage's config directory (mapping in configmap.yaml). Reference:
+# https://gethomepage.dev/configs/
+#
+# Loaded into the homepage-extras release, which renders it into the
+# ConfigMap. Kept as plain YAML (not .gotmpl) — nothing here needs helmfile
+# templating; host names that depend on SOPS values belong in the
+# deployment's values.yaml.gotmpl.
+homepageConfig:
+  # settings.yaml — https://gethomepage.dev/configs/settings/
+  settings:
+    title: Homepage
+    headerStyle: clean
+    # The config directory is a read-only ConfigMap mount; write logs to the
+    # chart's writable emptyDir instead (homepage appends /logs itself).
+    # Do not remove when overriding settings.
+    logpath: /app/config
+
+  # kubernetes.yaml — https://gethomepage.dev/configs/kubernetes/
+  # `cluster` mode uses the pod's ServiceAccount (RBAC shipped by the chart).
+  # The discovery toggles only pick up resources annotated with
+  # `gethomepage.dev/enabled: "true"`, so enabling all three is harmless.
+  kubernetes:
+    mode: cluster
+    ingress: true
+    traefik: true
+    gateway: true
+
+  # widgets.yaml — info widgets in the header.
+  # https://gethomepage.dev/widgets/info/kubernetes/
+  widgets:
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+          label: cluster
+        nodes:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+    - search:
+        provider: duckduckgo
+        target: _blank
+
+  # services.yaml — https://gethomepage.dev/configs/services/
+  # Cluster-specific; set per deployment.
+  services: []
+
+  # bookmarks.yaml — https://gethomepage.dev/configs/bookmarks/
+  bookmarks: []
+
+  # docker.yaml / proxmox.yaml — integrations not used by default. Present so
+  # homepage doesn't try to copy its skeleton into the read-only directory.
+  docker: {}
+  proxmox: {}
+
+  # custom.css / custom.js — raw file contents.
+  customCss: ""
+  customJs: ""
