@@ -16,6 +16,13 @@
 #   kubectl -n dsh logs sts/dsh | grep 'dsh web:'
 # and swap the 127.0.0.1:3080 part for https://dsh.<primary_domain>.
 #
+# Tool sandbox: dsh confines agent shell/file tools with Landlock, so the node
+# kernel must have Landlock in its *active* LSM list (check
+# /sys/kernel/security/lsm on the node, enable via `lsm=...,landlock` on the
+# kernel cmdline if missing). The community bubblewrap image variant
+# (`-bwrap.N` tags) is a Docker-Compose-only fallback for kernels without
+# Landlock and needs seccomp/procMount relaxations — not used here.
+#
 # Provider credentials are optional at deploy time (they can be entered in the
 # web UI settings). To ship them via SOPS instead, set `deepseek_api_key` in a
 # values.sops.yaml next to the deployment — a Secret is then created and wired
@@ -37,11 +44,11 @@ releases:
 
   - name: dsh
     namespace: dsh
-    chart: git::https://github.com/runzhliu/deepseek-harness-docker.git@charts/deepseek-harness?ref=image-v0.1.5-rc.2-r1
+    chart: git::https://github.com/runzhliu/deepseek-harness-docker.git@charts/deepseek-harness?ref=image-v0.2.1-alpha.1-r1
     values:
       - image:
           repository: ghcr.io/runzhliu/deepseek-harness
-          tag: 0.1.5-rc.2-r1
+          tag: 0.2.1-alpha.1-r1
 
         # Stable resource names regardless of how the release name is derived,
         # so extras.yaml.gotmpl can target the Service and Secret by name.
