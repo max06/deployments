@@ -44,11 +44,16 @@ releases:
 
   - name: dsh
     namespace: dsh
-    chart: git::https://github.com/runzhliu/deepseek-harness-docker.git@charts/deepseek-harness?ref=image-v0.2.1-alpha.1-r1
+    chart: git::https://github.com/runzhliu/deepseek-harness-docker.git@charts/deepseek-harness?ref=image-v0.2.2-rc.1-r1
     values:
       - image:
           repository: ghcr.io/runzhliu/deepseek-harness
-          tag: 0.2.1-alpha.1-r1
+          # `-bwrap.1` variant: the base image plus bubblewrap. dsh's tool
+          # sandbox fails closed unless it finds bwrap or a Landlock-enforcing
+          # kernel, and the Raspberry Pi kernels on picon are built without
+          # CONFIG_SECURITY_LANDLOCK (checked up to 6.18.60+rpt), so bwrap is
+          # the only backend available. See the sandbox block below.
+          tag: 0.2.2-rc.1-r1-bwrap.1
 
         # Stable resource names regardless of how the release name is derived,
         # so extras.yaml.gotmpl can target the Service and Secret by name.
@@ -100,3 +105,34 @@ releases:
             memory: 1Gi
           limits:
             memory: 4Gi
+
+        # bwrap sandbox, Kubernetes equivalent of upstream's compose.bwrap.yaml
+        # (`seccomp=unconfined` + `systempaths=unconfined`). bwrap needs to
+        # create a user + PID namespace and mount a fresh /proc inside the pod:
+        #   - seccomp Unconfined: RuntimeDefault blocks unshare(CLONE_NEWUSER)
+        #     for processes without CAP_SYS_ADMIN.
+        #   - procMount Unmasked: the runtime's masked /proc paths make the
+        #     kernel refuse the nested proc mount.
+        # Both were verified as individually required on picon. They are only
+        # acceptable together with `hostUsers: false` (patch below): the pod
+        # then runs in its own user namespace, so container uid 0/1000 map to
+        # an unprivileged host uid range. Non-root, no capabilities,
+        # no-new-privileges and the read-only root filesystem stay as the
+        # chart sets them (maps merge, only the listed keys change).
+        podSecurityContext:
+          seccompProfile:
+            type: Unconfined
+        securityContext:
+          procMount: Unmasked
+
+    # The chart has no value for `hostUsers`, so it is set by patch.
+    # Kubernetes rejects procMount Unmasked without it.
+    strategicMergePatches:
+      - apiVersion: apps/v1
+        kind: StatefulSet
+        metadata:
+          name: dsh
+        spec:
+          template:
+            spec:
+              hostUsers: false
