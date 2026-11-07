@@ -1,0 +1,8 @@
+# cert-manager + Let's Encrypt wildcard certificate for traefik's default
+# TLSStore. Secrets in values.sops.yaml (cloudflare_api_token, acme_email).
+apps:
+  - template: cert-manager
+
+settings:
+  branch: main
+  autoSync: false

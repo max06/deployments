@@ -1,0 +1,42 @@
+# cert-manager plus the wildcard certificate traefik serves by default.
+#
+# traefik's default TLSStore (apps/traefik) points at the wildcard secret
+# wildcard-<primary_domain, dots as dashes>-tls in the traefik namespace.
+# That secret is issued here: a Let's Encrypt
+# ClusterIssuer with a Cloudflare DNS-01 solver, and one Certificate for the
+# apex, *.<primary_domain> and *.picon.<primary_domain>.
+#
+# Until 2026-11 this lived outside GitOps (Rancher catalog app + hand-applied
+# manifests); it moved here with the picon rebuild. Secrets come from
+# values.sops.yaml next to the deployment:
+#   cloudflare_api_token  Cloudflare API token with Zone:DNS:Edit on the zone
+#   acme_email            Let's Encrypt account contact (kept out of this
+#                         public repo, hence SOPS)
+
+repositories:
+  - name: jetstack
+    url: https://charts.jetstack.io
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+
+releases:
+  - name: cert-manager
+    namespace: cert-manager
+    chart: jetstack/cert-manager
+    version: v1.21.3
+    values:
+      # The chart installs its CRDs; keep them on uninstall so a removed
+      # release doesn't take every Certificate (and issued secret) with it.
+      - crds:
+          enabled: true
+          keep: true
+
+  # Issuer, Cloudflare token Secret and the wildcard Certificate. These need
+  # the CRDs and the cert-manager webhook from the release above, so they sit
+  # in a later Argo CD sync wave (see issuer.yaml.gotmpl).
+  - name: cert-manager-issuer
+    namespace: cert-manager
+    chart: bedag/raw
+    version: 2.0.2
+    values:
+      - issuer.yaml.gotmpl
