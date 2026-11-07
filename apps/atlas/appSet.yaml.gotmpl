@@ -40,6 +40,27 @@ applicationsets:
         name: "{{`{{ .values.clusterName }}-{{ .values.appInstance }}`}}"
         annotations:
           debug: "{{`{{ .values | toJson }}`}}"
+          # Restrict re-renders to changes that can affect this deployment.
+          # Without it, ANY commit re-renders every Application. Paths: the
+          # deployment directory, the engine pin and entry helmfile, the
+          # hierarchy values on the way down, and each app template it uses.
+          argocd.argoproj.io/manifest-generate-paths: >-
+            {{`{{- $paths := list
+              (printf "/%s/**" .values.appInstancePath)
+              "/atlas.yaml"
+              "/helmfile.yaml.gotmpl"
+              "/clusters/global.values.*"
+            -}}
+            {{- range .apps -}}
+            {{- $paths = append $paths (printf "/apps/%s/**" .template) -}}
+            {{- end -}}
+            {{- if .values.clusterGroup -}}
+            {{- $paths = append $paths (printf "/clusters/%s/group.values.*" .values.clusterGroup) -}}
+            {{- $paths = append $paths (printf "/clusters/%s/%s/cluster.values.*" .values.clusterGroup .values.clusterName) -}}
+            {{- else -}}
+            {{- $paths = append $paths (printf "/clusters/%s/cluster.values.*" .values.clusterName) -}}
+            {{- end -}}
+            {{- join ";" $paths -}}`}}
       spec:
         project: default # {{`{{ get .settings "project" | default "default" }}`}}
         destination:
@@ -68,6 +89,12 @@ applicationsets:
               env:
                 - name: HELMFILE_USE_CONTEXT_NAMESPACE
                   value: "true"
+                # The filter `atlas render --argocd` reads (as ARGOCD_ENV_*):
+                # exactly one cluster (full path) and one deployment.
+                - name: ATLAS_FILTER_CLUSTER
+                  value: "{{`{{ if .values.clusterGroup }}{{ .values.clusterGroup }}/{{ end }}{{ .values.clusterName }}`}}"
+                - name: ATLAS_FILTER_DEPLOYMENT_NAME
+                  value: "{{`{{ .values.appInstance }}`}}"
                 - name: HELMFILE_GLOBAL_OPTIONS
                   value: "--selector {{`{{ if .values.clusterGroup }}`}}clusterGroup={{`{{ .values.clusterGroup }}`}},{{`{{ end }}`}}clusterName={{`{{ .values.clusterName }}`}},deploymentName={{`{{ .values.appInstance }}`}}"
                 - name: HELMFILE_TEMPLATE_OPTIONS

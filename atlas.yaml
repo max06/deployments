@@ -1,0 +1,13 @@
+# ATLAS engine pin. Selects the Argo CD plugin sidecar that renders this tree
+# (atlas-v0-15 on helios, see apps/argocd/patches/repo-server.yaml), the
+# image of bin/atlas and the engine of the PR review.
+apiVersion: atlas.io/v1alpha1
+kind: Root
+spec:
+  engine: "0.15"
+  # The native engine renders this tree identically (checked 2026-11-07),
+  # except apps/dsh: it can't fetch git:: chart sources yet. Switch to true
+  # once it can.
+  native: false
+  templateDir: apps
+  deploymentDir: clusters
