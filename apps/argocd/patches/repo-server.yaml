@@ -10,8 +10,19 @@ spec:
   template:
     spec:
       containers:
-        - name: helmfile-plugin
-          image: ghcr.io/ivx/argo-cd-helmfile:0.0.1
+        # ATLAS engine 0.15 as config management plugin (socket
+        # atlas-v0-15.sock). The image brings its own plugin config: discovery
+        # runs `atlas cmp match`, which matches trees whose atlas.yaml pins
+        # engine "0.15". Applications don't name a plugin. The image also
+        # carries the helm/helmfile versions this ATLAS release is tested
+        # with, so the plugin no longer depends on a separately built
+        # helmfile image.
+        #
+        # To change the engine: add a sidecar for the new minor (copy this
+        # one, change name and tag), sync, change the pin in atlas.yaml, then
+        # remove the old sidecar.
+        - name: atlas-v0-15
+          image: ghcr.io/max06/atlas:0.15.0
           command: [/var/run/argocd/argocd-cmp-server]
           securityContext:
             runAsNonRoot: true
@@ -27,10 +38,15 @@ spec:
             - mountPath: /home/argocd/cmp-server/plugins
               name: plugins
             - mountPath: /tmp
-              name: helmfile-cmp-tmp
+              name: atlas-v0-15-tmp
+            # charts and helmfile states between renders
+            - mountPath: /cache
+              name: atlas-v0-15-cache
       volumes:
         - name: age-secret-keys
           secret:
             secretName: argocd-age-secret-keys
         - emptyDir: {}
-          name: helmfile-cmp-tmp
+          name: atlas-v0-15-tmp
+        - emptyDir: {}
+          name: atlas-v0-15-cache
