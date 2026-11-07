@@ -1,0 +1,63 @@
+# Rendered by the bedag/raw chart. Companion resources for the cert-manager
+# release.
+#
+# Sync ordering in Argo CD: everything here is wave 1, so Argo CD applies the
+# cert-manager release (wave 0: CRDs, controller, webhook) first and waits for
+# it to become healthy. SkipDryRunOnMissingResource covers the very first sync,
+# when the cert-manager CRDs don't exist yet at dry-run time.
+{{- $syncAnnotations := dict
+      "argocd.argoproj.io/sync-wave" "1"
+      "argocd.argoproj.io/sync-options" "SkipDryRunOnMissingResource=true" }}
+resources:
+  # Cloudflare API token for the DNS-01 solver. Must live in the cert-manager
+  # namespace: a ClusterIssuer resolves secret refs in cert-manager's own
+  # (cluster resource) namespace.
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: cloudflare-api-token
+      annotations:
+        argocd.argoproj.io/sync-wave: "1"
+    type: Opaque
+    stringData:
+      api-token: {{ .Values.cloudflare_api_token | quote }}
+
+  - apiVersion: cert-manager.io/v1
+    kind: ClusterIssuer
+    metadata:
+      name: letsencrypt
+      annotations:
+        {{- toYaml $syncAnnotations | nindent 8 }}
+    spec:
+      acme:
+        email: {{ .Values.acme_email | quote }}
+        server: https://acme-v02.api.letsencrypt.org/directory
+        # ACME account key, created by cert-manager on first use.
+        privateKeySecretRef:
+          name: letsencrypt-account-key
+        solvers:
+          - dns01:
+              cloudflare:
+                apiTokenSecretRef:
+                  name: cloudflare-api-token
+                  key: api-token
+
+  # The certificate traefik's default TLSStore serves (apps/traefik). Lives in
+  # the traefik namespace because that's where the TLSStore looks for the
+  # secret.
+  - apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: wildcard-{{ .Values.primary_domain | replace "." "-" }}
+      namespace: traefik
+      annotations:
+        {{- toYaml $syncAnnotations | nindent 8 }}
+    spec:
+      secretName: wildcard-{{ .Values.primary_domain | replace "." "-" }}-tls
+      dnsNames:
+        - {{ .Values.primary_domain | quote }}
+        - {{ printf "*.%s" .Values.primary_domain | quote }}
+        - {{ printf "*.picon.%s" .Values.primary_domain | quote }}
+      issuerRef:
+        kind: ClusterIssuer
+        name: letsencrypt
