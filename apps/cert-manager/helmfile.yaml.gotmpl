@@ -1,7 +1,8 @@
 # cert-manager plus the wildcard certificate traefik serves by default.
 #
-# traefik's default TLSStore (apps/traefik) points at the secret
-# traefik/wildcard-max06-net-tls. That secret is issued here: a Let's Encrypt
+# traefik's default TLSStore (apps/traefik) points at the wildcard secret
+# wildcard-<primary_domain, dots as dashes>-tls in the traefik namespace.
+# That secret is issued here: a Let's Encrypt
 # ClusterIssuer with a Cloudflare DNS-01 solver, and one Certificate for the
 # apex, *.<primary_domain> and *.picon.<primary_domain>.
 #
