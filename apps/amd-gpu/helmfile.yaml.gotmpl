@@ -13,6 +13,14 @@ releases:
       # driver.
       - labeller:
           enabled: true
+        # The labeller opens /dev/dri/card* (libdrm) for family, VRAM and CU
+        # labels. The chart's hostPath /dev isn't enough with cgroup v2: the
+        # device filter of an unprivileged pod denies the DRM nodes (EPERM).
+        # Requesting amd.com/gpu would hold the node's only GPU instead.
+        lbl:
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
         # Only the amd64 node(s) have a GPU. The chart's default selector also
         # requires an NFD label; NFD doesn't run here, so null removes it from
         # the merged map.
