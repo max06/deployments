@@ -1,0 +1,29 @@
+repositories:
+  - name: amd-gpu
+    url: https://rocm.github.io/k8s-device-plugin/
+
+releases:
+  - name: amd-gpu
+    chart: amd-gpu/amd-gpu
+    version: 0.22.0
+    namespace: amd-gpu
+    values:
+      # Device plugin (amd.com/gpu) and node labeller (GPU family, VRAM, CU
+      # count as node labels) for AMD GPUs; the host provides the amdgpu
+      # driver.
+      - labeller:
+          enabled: true
+        # Only the amd64 node(s) have a GPU. The chart's default selector also
+        # requires an NFD label; NFD doesn't run here, so null removes it from
+        # the merged map.
+        node_selector_enabled: true
+        node_selector:
+          feature.node.kubernetes.io/pci-0300_1002.present: null
+          kubernetes.io/arch: amd64
+        tolerations:
+          - key: CriticalAddonsOnly
+            operator: Exists
+          # GPU nodes are tainted so only GPU workloads land there.
+          - key: hive.internal/gpu
+            operator: Exists
+            effect: NoSchedule

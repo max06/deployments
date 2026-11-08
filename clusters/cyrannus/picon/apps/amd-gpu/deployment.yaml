@@ -1,0 +1,6 @@
+apps:
+  - template: amd-gpu
+
+settings:
+  branch: main
+  autoSync: false
