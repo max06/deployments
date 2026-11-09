@@ -19,6 +19,13 @@ releases:
           externalTrafficPolicy: Cluster
         doh:
           enabled: true
+          # Pinned instead of the chart default `latest`. Pi-hole's only upstream
+          # is this sidecar, so a failed pull takes DNS down for the whole
+          # network. rke2's embedded registry (Spegel) never shares `latest`
+          # between nodes, and a fixed tag pulls the same image on every node.
+          # 2025.9.1 is what `latest` pointed to on 2026-11-07 (same digest).
+          # Renovate doesn't see inline helmfile values: bump by hand.
+          tag: "2025.9.1"
         extraEnvVars:
           FTLCONF_dns_listeningMode: all
         persistentVolumeClaim:
