@@ -21,5 +21,12 @@ releases:
             metadata:
               name: "internal-policy"
             spec:
+              # Only the Pis announce. The amd64 GPU node srv-gpu01 runs on
+              # Flo's desktop; LAN DNS (Pi-hole) must not depend on it.
+              nodeSelector:
+                matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: ["arm64"]
               loadBalancerIPs: true
               externalIPs: true

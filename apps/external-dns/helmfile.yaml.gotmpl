@@ -21,8 +21,12 @@ releases:
         extraArgs:
           - "--pihole-api-version=6"
         env:
+          # Short service name on purpose: it resolves through the pod's
+          # search domains whatever the cluster domain is. picon's is
+          # picon.hive.internal, so a hard-coded .svc.cluster.local never
+          # resolved there and external-dns crash-looped.
           - name: EXTERNAL_DNS_PIHOLE_SERVER
-            value: http://pihole-web.pihole.svc.cluster.local
+            value: http://pihole-web.pihole.svc
           - name: EXTERNAL_DNS_PIHOLE_PASSWORD
             value: "{{ .Values.pihole_password }}"
         logLevel: debug
