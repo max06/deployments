@@ -173,6 +173,10 @@ resources:
     metadata:
       name: {{ $name }}
     spec:
+      # The bridge only turns ready (/_matrix/mau/ready) after synapse has
+      # reached it, so the Service must route to not-ready pods too —
+      # otherwise neither side ever gets through.
+      publishNotReadyAddresses: true
       selector:
         app.kubernetes.io/name: {{ $name }}
       ports:
