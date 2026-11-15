@@ -17,21 +17,20 @@
 # Appservice tokens (as_token/hs_token) must match the registrations synapse
 # loads (synapse.yaml.gotmpl); both are rendered from the same values.
 #
-# Images: pinned to the first release at or after the dev builds that ran on
-# the old docker host (v26.07+dev, 2026-07-23), so the restored database
-# schema is never newer than the bridge.
+# Images: migrated on v0.2608.0 (first release at or after the dev builds
+# that ran on the old docker host), upgraded afterwards.
 {{- $domain := .Values.primary_domain }}
 {{- $secrets := .Values.matrix_secrets }}
 {{- $bridges := list
   (dict
     "name" "whatsapp"
-    "image" "dock.mau.dev/mautrix/whatsapp:v0.2608.0"
+    "image" "dock.mau.dev/mautrix/whatsapp:v0.2610.0"
     "port" 29318
     "network" (dict "displayname_template" "{{or .BusinessName .PushName .Phone}}")
     "commandPrefix" "!whatsapp")
   (dict
     "name" "signal"
-    "image" "dock.mau.dev/mautrix/signal:v0.2608.0"
+    "image" "dock.mau.dev/mautrix/signal:v0.2610.0"
     "port" 29328
     "network" dict
     "commandPrefix" "")
