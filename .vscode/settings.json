@@ -4,11 +4,5 @@
         "charts"
     ],
     "python.analysis.autoImportCompletions": true,
-    "python.analysis.typeCheckingMode": "basic",
-    "claudeCode.environmentVariables": [
-        {
-            "name": "SOPS_AGE_KEY_FILE",
-            "value": "/workspaces/deployments/system/tests/sops-secret.txt"
-        }
-    ]
+    "python.analysis.typeCheckingMode": "basic"
 }

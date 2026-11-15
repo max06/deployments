@@ -80,7 +80,7 @@ applicationsets:
       spec:
         syncPolicy:
           automated:
-            enabled: {{`{{ eq (get .settings "autoSync" | toString) "true" }}`}}
+            enabled: {{`{{ eq (get .settings "autosync" | default "false") "true" }}`}}
         sources:
           - repoURL: https://github.com/max06/deployments
             targetRevision: {{`{{ get .settings "branch" | default "HEAD" }}`}}
