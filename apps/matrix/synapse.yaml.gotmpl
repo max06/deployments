@@ -1,0 +1,294 @@
+# Synapse homeserver — rendered by the bedag/raw chart.
+#
+# A single synapse process (no workers, hence no redis). Layout in the pod:
+#
+#   /config  Secret `synapse-config` (read-only): homeserver.yaml, signing
+#            key, log config and the appservice registrations
+#   /data    PVC `synapse-data`: media_store + pid file
+#
+# The database password is not part of homeserver.yaml: psycopg2/libpq read
+# it from PGPASSWORD, which comes straight from the CNPG role Secret
+# `matrix-db-synapse` (apps/matrix-db).
+#
+# Secrets come from the deployment's values.sops.yaml (`matrix_secrets.*`),
+# host names from the SOPS-encrypted `primary_domain`.
+{{- $domain := .Values.primary_domain }}
+{{- $image := "matrixdotorg/synapse:v1.157.2" }}
+
+{{- /* All files of the synapse-config Secret. Rendered once for the Secret
+     and once for the pod's checksum annotation, so any change to them
+     rolls the pod. */}}
+{{- define "synapse.configFiles" }}
+{{- $domain := .Values.primary_domain }}
+{{- $domainRegex := $domain | replace "." "\\." }}
+{{- $secrets := .Values.matrix_secrets }}
+homeserver.yaml: |
+  server_name: "{{ $domain }}"
+  public_baseurl: "https://matrix.{{ $domain }}/"
+  web_client_location: "https://element.{{ $domain }}/"
+  # Synapse answers /.well-known/matrix/{server,client} itself. The
+  # apex <domain>/.well-known/matrix/* is redirected here by the
+  # traefik `matrix-wellknown` IngressRoute (apps/traefik).
+  serve_server_wellknown: true
+  pid_file: /data/homeserver.pid
+
+  presence:
+    enabled: true
+    include_offline_users_on_sync: true
+
+  listeners:
+    - port: 8008
+      tls: false
+      type: http
+      x_forwarded: true
+      resources:
+        - names: [client, federation]
+          compress: true
+
+  app_service_config_files:
+    - /config/mautrix-whatsapp-registration.yaml
+    - /config/mautrix-signal-registration.yaml
+    - /config/doublepuppet-registration.yaml
+
+  database:
+    name: psycopg2
+    args:
+      user: synapse
+      # password: from the PGPASSWORD environment variable
+      database: synapse
+      host: matrix-db-rw
+      port: 5432
+      sslmode: require
+      cp_min: 5
+      cp_max: 10
+
+  log_config: /config/log.config
+  media_store_path: /data/media_store
+  signing_key_path: /config/signing.key
+
+  enable_registration: true
+  registration_requires_token: true
+  registration_shared_secret: {{ $secrets.synapse.registration_shared_secret | quote }}
+  macaroon_secret_key: {{ $secrets.synapse.macaroon_secret_key | quote }}
+  form_secret: {{ $secrets.synapse.form_secret | quote }}
+
+  report_stats: true
+  trusted_key_servers:
+    - server_name: matrix.org
+
+signing.key: {{ $secrets.synapse.signing_key | trim | quote }}
+
+log.config: |
+  version: 1
+  formatters:
+    precise:
+      format: '%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(request)s - %(message)s'
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: precise
+  loggers:
+    synapse.storage.SQL:
+      # DEBUG here would log sensitive data such as access tokens.
+      level: INFO
+  root:
+    level: INFO
+    handlers: [console]
+  disable_existing_loggers: false
+
+# Appservice registrations. as_token/hs_token must match the bridges'
+# appservice.* config (apps/matrix/helmfile.yaml.gotmpl), both read
+# from the same values.
+{{- range $bridge := list "whatsapp" "signal" }}
+{{- $bridgeSecrets := index $secrets $bridge }}
+mautrix-{{ $bridge }}-registration.yaml: |
+  id: {{ $bridge }}
+  url: http://mautrix-{{ $bridge }}:{{ index (dict "whatsapp" 29318 "signal" 29328) $bridge }}
+  as_token: {{ $bridgeSecrets.as_token | quote }}
+  hs_token: {{ $bridgeSecrets.hs_token | quote }}
+  sender_localpart: {{ $bridgeSecrets.sender_localpart | quote }}
+  rate_limited: false
+  namespaces:
+    users:
+      - regex: '^@{{ $bridge }}bot:{{ $domainRegex }}$'
+        exclusive: true
+      - regex: '^@{{ $bridge }}_.*:{{ $domainRegex }}$'
+        exclusive: true
+  de.sorunome.msc2409.push_ephemeral: true
+  receive_ephemeral: true
+{{- end }}
+
+# Double puppeting for both bridges via the appservice method
+# (https://docs.mau.fi/bridges/general/double-puppeting.html): the
+# bridges log in as real users with this as_token. No url — the
+# homeserver never pushes events to this "appservice".
+doublepuppet-registration.yaml: |
+  id: doublepuppet
+  url:
+  as_token: {{ $secrets.doublepuppet.as_token | quote }}
+  hs_token: {{ $secrets.doublepuppet.hs_token | quote }}
+  sender_localpart: {{ $secrets.doublepuppet.sender_localpart | quote }}
+  rate_limited: false
+  namespaces:
+    users:
+      - regex: '@.*:{{ $domainRegex }}'
+        # Must stay false, or this appservice claims every user.
+        exclusive: false
+{{- end }}
+
+resources:
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: synapse-config
+    type: Opaque
+    stringData:
+      {{- include "synapse.configFiles" . | nindent 6 }}
+
+  # Media store (~7 GB on 2026-11-15) + pid file.
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: synapse-data
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: longhorn
+      resources:
+        requests:
+          storage: 30Gi
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: synapse
+      labels:
+        app.kubernetes.io/name: synapse
+    spec:
+      replicas: 1
+      # RWO volume: the old pod must release it before the new one starts.
+      strategy:
+        type: Recreate
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: synapse
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: synapse
+          annotations:
+            # Roll the pod when the rendered config changes.
+            checksum/config: {{ include "synapse.configFiles" . | sha256sum | trunc 16 | quote }}
+        spec:
+          securityContext:
+            # The image's default UID; the migrated media files belong to it.
+            runAsUser: 991
+            runAsGroup: 991
+            runAsNonRoot: true
+            fsGroup: 991
+            # Skip the recursive chown of the media store on every mount.
+            fsGroupChangePolicy: OnRootMismatch
+          containers:
+            - name: synapse
+              image: {{ $image }}
+              env:
+                # The image's start.py runs synapse with this config file;
+                # as non-root it skips its own chown/gosu step.
+                - name: SYNAPSE_CONFIG_PATH
+                  value: /config/homeserver.yaml
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: matrix-db-synapse
+                      key: password
+              ports:
+                - name: http
+                  containerPort: 8008
+              startupProbe:
+                httpGet:
+                  path: /health
+                  port: http
+                periodSeconds: 5
+                failureThreshold: 60
+              readinessProbe:
+                httpGet:
+                  path: /health
+                  port: http
+                periodSeconds: 10
+              livenessProbe:
+                httpGet:
+                  path: /health
+                  port: http
+                periodSeconds: 30
+                failureThreshold: 5
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+                limits:
+                  memory: 2Gi
+              volumeMounts:
+                - name: config
+                  mountPath: /config
+                  readOnly: true
+                - name: data
+                  mountPath: /data
+          volumes:
+            - name: config
+              secret:
+                secretName: synapse-config
+            - name: data
+              persistentVolumeClaim:
+                claimName: synapse-data
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: synapse
+    spec:
+      selector:
+        app.kubernetes.io/name: synapse
+      ports:
+        - name: http
+          port: 8008
+          targetPort: http
+
+  # Public: client + federation API on matrix.<domain>, and the federation
+  # API on the apex (the server well-known delegates to <domain>:443).
+  # The apex /.well-known/matrix/* is handled by apps/traefik.
+  # LAN clients hairpin through the public IP too, so websecure is enough.
+  - apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: synapse
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    spec:
+      rules:
+        - host: "matrix.{{ $domain }}"
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: synapse
+                    port:
+                      name: http
+        - host: "{{ $domain }}"
+          http:
+            paths:
+              - path: /_matrix
+                pathType: Prefix
+                backend:
+                  service:
+                    name: synapse
+                    port:
+                      name: http
+              - path: /_synapse
+                pathType: Prefix
+                backend:
+                  service:
+                    name: synapse
+                    port:
+                      name: http

@@ -1,0 +1,6 @@
+apps:
+  - template: matrix-db
+
+settings:
+  branch: main
+  autoSync: false

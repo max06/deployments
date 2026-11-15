@@ -1,0 +1,182 @@
+# mautrix bridges (WhatsApp, Signal) — rendered by the bedag/raw chart.
+#
+# Both are mautrix-go "bridgev2" bridges and are deployed identically; the
+# per-bridge differences live in $bridges below.
+#
+# Config: only the settings that differ from the bridge's built-in defaults
+# are rendered into config.yaml (Secret `mautrix-<bridge>-config`). On start
+# the bridge merges the file onto its embedded example config, so every
+# other key keeps its default. `--no-update` stops it from trying to write
+# the merged result back to the read-only Secret mount.
+#
+# Database: the URI is injected via the env override (env_config_prefix
+# BRIDGE_ → BRIDGE_DATABASE__URI), assembled from the CNPG role Secret
+# `matrix-db-<bridge>` (apps/matrix-db). Kubernetes expands $(DB_PASSWORD)
+# inside the value; the passwords are hex, so they're URL-safe.
+#
+# Appservice tokens (as_token/hs_token) must match the registrations synapse
+# loads (synapse.yaml.gotmpl); both are rendered from the same values.
+#
+# Images: pinned to the first release at or after the dev builds that ran on
+# the old docker host (v26.07+dev, 2026-07-23), so the restored database
+# schema is never newer than the bridge.
+{{- $domain := .Values.primary_domain }}
+{{- $secrets := .Values.matrix_secrets }}
+{{- $bridges := list
+  (dict
+    "name" "whatsapp"
+    "image" "dock.mau.dev/mautrix/whatsapp:v0.2608.0"
+    "port" 29318
+    "network" (dict "displayname_template" "{{or .BusinessName .PushName .Phone}}")
+    "commandPrefix" "!whatsapp")
+  (dict
+    "name" "signal"
+    "image" "dock.mau.dev/mautrix/signal:v0.2608.0"
+    "port" 29328
+    "network" dict
+    "commandPrefix" "")
+}}
+
+{{- /* config.yaml of one bridge, as a map. Called with
+       (dict "bridge" <entry of $bridges> "domain" … "secrets" …). */}}
+{{- define "bridge.config" }}
+{{- $bridge := .bridge }}
+{{- $bridgeSecrets := index .secrets $bridge.name }}
+{{- $config := dict
+  "homeserver" (dict
+    "address" "http://synapse:8008"
+    "domain" .domain)
+  "appservice" (dict
+    "address" (printf "http://mautrix-%s:%v" $bridge.name $bridge.port)
+    "hostname" "0.0.0.0"
+    "port" $bridge.port
+    "as_token" $bridgeSecrets.as_token
+    "hs_token" $bridgeSecrets.hs_token)
+  "database" (dict
+    "type" "postgres"
+    "max_open_conns" 10
+    "max_idle_conns" 5)
+  "bridge" (dict
+    "permissions" (dict
+      .domain "user"
+      (printf "@flo:%s" .domain) "admin"))
+  "double_puppet" (dict
+    "secrets" (dict .domain (printf "as_token:%s" .secrets.doublepuppet.as_token)))
+  "encryption" (dict
+    "allow" true
+    "pickle_key" $bridgeSecrets.pickle_key)
+  "provisioning" (dict "shared_secret" $bridgeSecrets.provisioning_shared_secret)
+  "public_media" (dict "signing_key" $bridgeSecrets.public_media_signing_key)
+  "direct_media" (dict "server_key" $bridgeSecrets.direct_media_server_key)
+  "logging" (dict
+    "min_level" "info"
+    "writers" (list (dict "type" "stdout" "format" "pretty")))
+  "env_config_prefix" "BRIDGE_"
+}}
+{{- if $bridge.network }}
+{{- $_ := set $config "network" $bridge.network }}
+{{- end }}
+{{- if $bridge.commandPrefix }}
+{{- $_ := set $config.bridge "command_prefix" $bridge.commandPrefix }}
+{{- end }}
+{{- toYaml $config }}
+{{- end }}
+
+resources:
+{{- range $bridge := $bridges }}
+{{- $name := printf "mautrix-%s" $bridge.name }}
+{{- $configYaml := include "bridge.config" (dict "bridge" $bridge "domain" $domain "secrets" $secrets) }}
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: {{ $name }}-config
+    type: Opaque
+    stringData:
+      config.yaml: |
+        {{- $configYaml | nindent 8 }}
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: {{ $name }}
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+    spec:
+      replicas: 1
+      # Never run two instances of a bridge against the same database.
+      strategy:
+        type: Recreate
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: {{ $name }}
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ $name }}
+          annotations:
+            checksum/config: {{ printf "%s%s" $configYaml $bridge.image | sha256sum | trunc 16 | quote }}
+        spec:
+          securityContext:
+            runAsUser: 1337
+            runAsGroup: 1337
+            runAsNonRoot: true
+          containers:
+            - name: bridge
+              image: {{ $bridge.image }}
+              # Bypass the image's docker-run.sh (it wants a writable /data
+              # with config + registration and chowns it).
+              command:
+                - /usr/bin/{{ $name }}
+                - --config=/config/config.yaml
+                - --no-update
+              workingDir: /tmp
+              env:
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: matrix-db-{{ $bridge.name }}
+                      key: password
+                - name: BRIDGE_DATABASE__URI
+                  value: "postgres://{{ $bridge.name }}:$(DB_PASSWORD)@matrix-db-rw:5432/{{ $bridge.name }}?sslmode=require"
+              ports:
+                - name: appservice
+                  containerPort: {{ $bridge.port }}
+              livenessProbe:
+                httpGet:
+                  path: /_matrix/mau/live
+                  port: appservice
+                periodSeconds: 30
+                failureThreshold: 5
+              readinessProbe:
+                httpGet:
+                  path: /_matrix/mau/ready
+                  port: appservice
+                periodSeconds: 10
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 64Mi
+                limits:
+                  memory: 512Mi
+              volumeMounts:
+                - name: config
+                  mountPath: /config
+                  readOnly: true
+          volumes:
+            - name: config
+              secret:
+                secretName: {{ $name }}-config
+
+  # Synapse pushes appservice transactions here (registration `url`).
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{ $name }}
+    spec:
+      selector:
+        app.kubernetes.io/name: {{ $name }}
+      ports:
+        - name: appservice
+          port: {{ $bridge.port }}
+          targetPort: appservice
+{{- end }}

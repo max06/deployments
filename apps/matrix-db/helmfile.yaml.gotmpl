@@ -1,0 +1,105 @@
+# PostgreSQL for the matrix stack (synapse + mautrix bridges), managed by the
+# CloudNativePG operator (apps/cloudnative-pg must be synced first: CRDs).
+#
+# One CNPG Cluster `matrix-db`, one database + login role per consumer:
+#
+#   database   owner      created by
+#   synapse    synapse    bootstrap.initdb (C collation, required by synapse)
+#   whatsapp   whatsapp   managed role + Database resource
+#   signal     signal     managed role + Database resource
+#
+# Credentials: one kubernetes.io/basic-auth Secret per role, named
+# `matrix-db-<role>`, passwords from this deployment's values.sops.yaml
+# (`matrix_db.<role>_password`, hex so they are URL-safe for the bridges'
+# postgres:// URIs). Consumers in the `matrix` namespace reference these
+# Secrets directly (secretKeyRef) — the passwords are never duplicated.
+#
+# Connect via the read-write Service `matrix-db-rw:5432` (TLS available,
+# CNPG manages the server certificate).
+#
+# Kept as a separate ATLAS deployment from apps/matrix on purpose: the
+# database has to exist (and be restored from the old docker setup) before
+# synapse and the bridges are synced.
+repositories:
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+
+releases:
+  - name: matrix-db
+    namespace: matrix
+    chart: bedag/raw
+    version: 2.0.2
+    values:
+      - resources:
+        {{- range $role := list "synapse" "whatsapp" "signal" }}
+          - apiVersion: v1
+            kind: Secret
+            type: kubernetes.io/basic-auth
+            metadata:
+              name: matrix-db-{{ $role }}
+              labels:
+                # Lets CNPG pick up password changes for managed roles.
+                cnpg.io/reload: "true"
+            stringData:
+              username: {{ $role }}
+              password: {{ index $.Values.matrix_db (printf "%s_password" $role) | quote }}
+        {{- end }}
+
+          - apiVersion: postgresql.cnpg.io/v1
+            kind: Cluster
+            metadata:
+              name: matrix-db
+            spec:
+              # A single instance: Longhorn already replicates the volume
+              # across nodes, so a node loss means a reschedule + volume
+              # re-attach (minutes), not data loss. Raise to 2+ for
+              # streaming-replica failover in seconds.
+              instances: 1
+              imageName: ghcr.io/cloudnative-pg/postgresql:17.12-standard-trixie
+
+              storage:
+                storageClass: longhorn
+                size: 20Gi
+
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+                limits:
+                  memory: 1Gi
+
+              bootstrap:
+                initdb:
+                  database: synapse
+                  owner: synapse
+                  secret:
+                    name: matrix-db-synapse
+                  # Synapse refuses to start on a database whose collation
+                  # isn't C (https://element-hq.github.io/synapse/latest/postgres.html).
+                  encoding: UTF8
+                  localeCollate: C
+                  localeCType: C
+
+              managed:
+                roles:
+                {{- range $role := list "whatsapp" "signal" }}
+                  - name: {{ $role }}
+                    ensure: present
+                    login: true
+                    passwordSecret:
+                      name: matrix-db-{{ $role }}
+                {{- end }}
+
+        {{- range $role := list "whatsapp" "signal" }}
+          - apiVersion: postgresql.cnpg.io/v1
+            kind: Database
+            metadata:
+              name: matrix-db-{{ $role }}
+            spec:
+              cluster:
+                name: matrix-db
+              name: {{ $role }}
+              owner: {{ $role }}
+              # Never drop the database when this resource is deleted.
+              databaseReclaimPolicy: retain
+        {{- end }}

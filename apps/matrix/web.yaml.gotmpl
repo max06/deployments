@@ -1,0 +1,132 @@
+# Web frontends — rendered by the bedag/raw chart.
+#
+#   element.<domain>        Element web client (public, websecure)
+#   synapse-admin.<domain>  synapse-admin UI (LAN only, webinternal). It's a
+#                           static SPA: the browser talks to the admin API on
+#                           matrix.<domain>/_synapse/admin with an admin's
+#                           access token.
+{{- $domain := .Values.primary_domain }}
+
+{{- define "web.elementConfig" }}
+{{- $domain := .Values.primary_domain }}
+{{- dict
+  "default_server_config" (dict
+    "m.homeserver" (dict
+      "base_url" (printf "https://matrix.%s" $domain)
+      "server_name" $domain)
+    "m.identity_server" (dict "base_url" "https://vector.im"))
+  "brand" "Element"
+  "show_labs_settings" true
+  "room_directory" (dict "servers" (list "matrix.org" "gitter.im" "libera.chat"))
+  | toPrettyJson }}
+{{- end }}
+
+{{- $apps := list
+  (dict
+    "name" "element"
+    "image" "vectorim/element-web:v1.12.24"
+    "host" (printf "element.%s" $domain)
+    "public" true)
+  (dict
+    "name" "synapse-admin"
+    "image" "awesometechnologies/synapse-admin:0.11.4"
+    "host" (printf "synapse-admin.%s" $domain)
+    "public" false)
+}}
+
+resources:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: element-config
+    data:
+      config.json: |
+        {{- include "web.elementConfig" . | nindent 8 }}
+
+{{- range $app := $apps }}
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: {{ $app.name }}
+      labels:
+        app.kubernetes.io/name: {{ $app.name }}
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: {{ $app.name }}
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ $app.name }}
+          {{- if eq $app.name "element" }}
+          annotations:
+            checksum/config: {{ include "web.elementConfig" $ | sha256sum | trunc 16 | quote }}
+          {{- end }}
+        spec:
+          containers:
+            - name: {{ $app.name }}
+              image: {{ $app.image }}
+              ports:
+                - name: http
+                  containerPort: 80
+              readinessProbe:
+                httpGet:
+                  path: /
+                  port: http
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 128Mi
+              {{- if eq $app.name "element" }}
+              volumeMounts:
+                - name: config
+                  mountPath: /app/config.json
+                  subPath: config.json
+                  readOnly: true
+          volumes:
+            - name: config
+              configMap:
+                name: element-config
+              {{- end }}
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{ $app.name }}
+    spec:
+      selector:
+        app.kubernetes.io/name: {{ $app.name }}
+      ports:
+        - name: http
+          port: 80
+          targetPort: http
+
+  - apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: {{ $app.name }}
+      annotations:
+      {{- if $app.public }}
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      {{- else }}
+        # LAN-only: webinternal entrypoint (ipAllowList middleware), with the
+        # DNS record pointed at the internal traefik LoadBalancer.
+        traefik.ingress.kubernetes.io/router.entrypoints: webinternal
+        external-dns.alpha.kubernetes.io/target: 192.168.30.241
+      {{- end }}
+    spec:
+      rules:
+        - host: {{ $app.host | quote }}
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: {{ $app.name }}
+                    port:
+                      name: http
+{{- end }}

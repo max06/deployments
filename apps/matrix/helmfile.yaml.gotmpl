@@ -1,0 +1,43 @@
+# Matrix homeserver stack: synapse, the mautrix WhatsApp + Signal bridges,
+# Element web and synapse-admin. Migrated from the docker-compose setup on
+# docker1 (/opt/syno/matrix) on 2026-11-15.
+#
+# Depends on:
+#   apps/cloudnative-pg  operator (CRDs)
+#   apps/matrix-db       CNPG Cluster `matrix-db` + per-role Secrets
+#                        `matrix-db-{synapse,whatsapp,signal}` (same namespace)
+#   apps/traefik         apex /.well-known/matrix/* redirect to matrix.<domain>
+#
+# Values (deployment level):
+#   primary_domain       server_name + host names (global, SOPS)
+#   matrix_secrets.*     synapse secrets + signing key, appservice tokens,
+#                        bridge keys (values.sops.yaml)
+#
+# Everything is plain manifests via bedag/raw instead of a synapse chart:
+# the available charts force a redis (and bitnami subcharts) that a
+# single-process synapse doesn't need.
+repositories:
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+
+releases:
+  - name: synapse
+    namespace: matrix
+    chart: bedag/raw
+    version: 2.0.2
+    values:
+      - synapse.yaml.gotmpl
+
+  - name: mautrix-bridges
+    namespace: matrix
+    chart: bedag/raw
+    version: 2.0.2
+    values:
+      - bridges.yaml.gotmpl
+
+  - name: matrix-web
+    namespace: matrix
+    chart: bedag/raw
+    version: 2.0.2
+    values:
+      - web.yaml.gotmpl
