@@ -28,6 +28,11 @@ releases:
           tag: "2025.9.1"
         extraEnvVars:
           FTLCONF_dns_listeningMode: all
+          # Per-client limit (default 1000 queries / 60 s). Every pod in
+          # picon reaches Pi-hole through the two CoreDNS pods, so the whole
+          # cluster counts as two clients; agent workloads pushed them past
+          # 2000/min and got refused (2026-11-15).
+          FTLCONF_dns_rateLimit_count: "20000"
         persistentVolumeClaim:
           enabled: true
           size: "10Gi"
