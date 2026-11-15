@@ -256,13 +256,15 @@ resources:
   # Public: client + federation API on matrix.<domain>, and the federation
   # API on the apex (the server well-known delegates to <domain>:443).
   # The apex /.well-known/matrix/* is handled by apps/traefik.
-  # LAN clients hairpin through the public IP too, so websecure is enough.
+  # Both entrypoints: external-dns publishes the internal LoadBalancer
+  # (192.168.30.241, webinternal) for every Ingress host into Pi-hole, so
+  # LAN clients arrive on webinternal, everyone else on websecure.
   - apiVersion: networking.k8s.io/v1
     kind: Ingress
     metadata:
       name: synapse
       annotations:
-        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure,webinternal
     spec:
       rules:
         - host: "matrix.{{ $domain }}"

@@ -110,7 +110,9 @@ resources:
       name: {{ $app.name }}
       annotations:
       {{- if $app.public }}
-        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        # Both entrypoints: LAN clients resolve to the internal LoadBalancer
+        # (external-dns → Pi-hole), everyone else comes in on websecure.
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure,webinternal
       {{- else }}
         # LAN-only: webinternal entrypoint (ipAllowList middleware), with the
         # DNS record pointed at the internal traefik LoadBalancer.
