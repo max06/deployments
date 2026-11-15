@@ -11,9 +11,9 @@
 # checks its sha256; later starts find the files and skip straight on.
 #
 # VRAM: the card is shared with monster's desktop and its whisper-server
-# (~6 GB in use). Radiance sizes its pools once from what it's given and
-# never shrinks them, so `memory.gpu-memory-mib` caps it explicitly instead
-# of letting it take "whatever is free right now".
+# (~6 GB in use). Radiance measures what's resident when it starts, keeps
+# `memory.gpu-headroom-mib` free on top for the desktop to grow, and sizes
+# its pools once from the rest (they never shrink).
 #
 # Access: in-cluster via Service radiance.radiance:8000, LAN via
 # llm.<domain> on traefik's webinternal entrypoint. Every request except
@@ -44,10 +44,12 @@ server:
   api-key-env: RADIANCE_API_KEY
   download-dir: /models/hf
 memory:
-  # Hard cap on the card for everything Radiance holds (weights, KV,
-  # activations): 32 GB card - ~6 GB desktop/whisper - room for the desktop
-  # to grow. Excludes gpu-headroom-mib (the two are mutually exclusive).
-  gpu-memory-mib: 24576
+  # Kept free on top of what is already resident when Radiance starts
+  # (it measures monster's desktop + whisper-server, ~6 GB, and leaves that
+  # alone): room for the desktop to grow while Radiance holds the rest.
+  # Not gpu-memory-mib: that one replaces the card's capacity and the
+  # resident usage is subtracted from it again, i.e. counted twice.
+  gpu-headroom-mib: 3072
   # Pinned host memory for parked models and the KV host tier. monster's
   # RAM is shared with the desktop, so keep it small.
   host-mib: 8192
