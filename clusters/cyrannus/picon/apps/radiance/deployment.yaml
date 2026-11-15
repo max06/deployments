@@ -1,0 +1,8 @@
+apps:
+  - template: radiance
+
+settings:
+  branch: main
+  autoSync: false
+  # Argo CD creates (only) this namespace on sync.
+  namespace: radiance

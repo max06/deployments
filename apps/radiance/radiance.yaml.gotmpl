@@ -1,0 +1,259 @@
+# Radiance — rendered by the bedag/raw chart.
+#
+# One process owns the GPU (amd.com/gpu: 1) and serves every model in
+# `radianceModels` behind one port; a request's `model` field picks the
+# entry, and Radiance brings that model onto the card (the least recently
+# used one gives way when the card is full).
+#
+# Models live on a local-path volume on srv-gpu01 (monster's
+# /var/lib/srv-gpu01-volumes, survives rebuilding the node). The init
+# container downloads every missing model file from Hugging Face once and
+# checks its sha256; later starts find the files and skip straight on.
+#
+# VRAM: the card is shared with monster's desktop and its whisper-server
+# (~6 GB in use). Radiance sizes its pools once from what it's given and
+# never shrinks them, so `memory.gpu-memory-mib` caps it explicitly instead
+# of letting it take "whatever is free right now".
+#
+# Access: in-cluster via Service radiance.radiance:8000, LAN via
+# llm.<domain> on traefik's webinternal entrypoint. Every request except
+# /health, /ping and the dashboard needs `Authorization: Bearer <key>`
+# (`radiance_api_key` in the deployment's values.sops.yaml).
+{{- $domain := .Values.primary_domain }}
+{{- $image := "stilldeadcode/radiance:2.1.0" }}
+
+{{- /* Model entries: the Radiance `models:` settings plus where the file
+       comes from. `file` lands in /models; `sha256` is the LFS oid from
+       Hugging Face. */}}
+{{- $models := dict
+  "qwen3.8-27b" (dict
+    "file" "qwen3.8-27b-iq4r-l-v4.rad"
+    "url" "https://huggingface.co/StillDeadcode/qwen3.8-27b-iqr-v4/resolve/main/qwen3.8-27b-iq4r-l-v4.rad"
+    "sha256" "d57d1428218e20a4cd578c3e286f30a2e566e589c832bf5004f49e164cb48ae4"
+    "settings" (dict
+      "tp" 1
+      "max-num-seqs" 4
+      "max-model-len" 131072
+      "kv-cache-dtype" "i8"))
+}}
+
+{{- define "radiance.config" }}
+server:
+  host: "0.0.0.0"
+  port: 8000
+  api-key-env: RADIANCE_API_KEY
+  download-dir: /models/hf
+memory:
+  # Hard cap on the card for everything Radiance holds (weights, KV,
+  # activations): 32 GB card - ~6 GB desktop/whisper - room for the desktop
+  # to grow. Excludes gpu-headroom-mib (the two are mutually exclusive).
+  gpu-memory-mib: 24576
+  # Pinned host memory for parked models and the KV host tier. monster's
+  # RAM is shared with the desktop, so keep it small.
+  host-mib: 8192
+scheduler:
+  load-timeout: 600s
+models:
+{{- range $name, $model := .models }}
+  {{ $name }}:
+    model: /models/{{ $model.file }}
+    {{- toYaml $model.settings | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- $config := include "radiance.config" (dict "models" $models) }}
+
+resources:
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: radiance-api-key
+    type: Opaque
+    stringData:
+      api-key: {{ .Values.radiance_api_key | quote }}
+
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: radiance-config
+    data:
+      radiance.yaml: |
+        {{- $config | nindent 8 }}
+      # One line per model: <file> <sha256> <url>, read by the init container.
+      models.txt: |
+        {{- range $name, $model := $models }}
+        {{ $model.file }} {{ $model.sha256 }} {{ $model.url }}
+        {{- end }}
+
+  # Model files. Retain: deleting the claim keeps the files on monster.
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: radiance-models
+    spec:
+      storageClassName: local-path
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 150Gi
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: radiance
+      labels:
+        app.kubernetes.io/name: radiance
+    spec:
+      replicas: 1
+      # One GPU: the old pod has to release it first.
+      strategy:
+        type: Recreate
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: radiance
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: radiance
+          annotations:
+            checksum/config: {{ printf "%s%s" $config $image | sha256sum | trunc 16 | quote }}
+        spec:
+          nodeSelector:
+            kubernetes.io/hostname: srv-gpu01
+          tolerations:
+            - key: hive.internal/gpu
+              operator: Exists
+              effect: NoSchedule
+          # /dev/kfd and /dev/dri/renderD128 are world-accessible on the
+          # node, so no root and no render/video groups are needed.
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+          # Radiance finishes the step in flight and releases the card on
+          # SIGTERM.
+          terminationGracePeriodSeconds: 60
+          initContainers:
+            - name: fetch-models
+              image: curlimages/curl:8.23.0
+              command:
+                - sh
+                - -ec
+                - |
+                  while read -r file sha url; do
+                    [ -n "$file" ] || continue
+                    if [ -f "/models/$file" ]; then
+                      echo "$file: present"
+                      continue
+                    fi
+                    echo "$file: downloading"
+                    # -C -: resumes a partial download after a restart.
+                    curl -fL --retry 5 -C - -o "/models/$file.part" "$url"
+                    echo "$sha  /models/$file.part" | sha256sum -c -
+                    mv "/models/$file.part" "/models/$file"
+                  done < /config/models.txt
+              volumeMounts:
+                - name: models
+                  mountPath: /models
+                - name: config
+                  mountPath: /config
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+          containers:
+            - name: radiance
+              image: {{ $image }}
+              args:
+                - --config
+                - /etc/radiance/radiance.yaml
+              env:
+                - name: RADIANCE_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: radiance-api-key
+                      key: api-key
+              ports:
+                - name: http
+                  containerPort: 8000
+              # /health answers without the API key. Models load on the
+              # first request that names them, so the server itself is up
+              # quickly.
+              startupProbe:
+                httpGet:
+                  path: /health
+                  port: http
+                periodSeconds: 10
+                failureThreshold: 60
+              livenessProbe:
+                httpGet:
+                  path: /health
+                  port: http
+                periodSeconds: 30
+                timeoutSeconds: 5
+                failureThreshold: 3
+              readinessProbe:
+                httpGet:
+                  path: /health
+                  port: http
+                periodSeconds: 10
+              resources:
+                requests:
+                  cpu: "1"
+                  memory: 8Gi
+                limits:
+                  amd.com/gpu: 1
+                  memory: 24Gi
+              volumeMounts:
+                - name: models
+                  mountPath: /models
+                - name: config
+                  mountPath: /etc/radiance/radiance.yaml
+                  subPath: radiance.yaml
+                  readOnly: true
+          volumes:
+            - name: models
+              persistentVolumeClaim:
+                claimName: radiance-models
+            - name: config
+              configMap:
+                name: radiance-config
+
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: radiance
+    spec:
+      selector:
+        app.kubernetes.io/name: radiance
+      ports:
+        - name: http
+          port: 8000
+          targetPort: http
+
+  # LAN only: webinternal entrypoint (ipAllowList), DNS record on the
+  # internal traefik LoadBalancer.
+  - apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: radiance
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: webinternal
+        external-dns.alpha.kubernetes.io/target: 192.168.30.241
+    spec:
+      rules:
+        - host: "llm.{{ $domain }}"
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: radiance
+                    port:
+                      name: http
