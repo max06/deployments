@@ -1,0 +1,60 @@
+# local-path-provisioner (https://github.com/rancher/local-path-provisioner):
+# dynamic PersistentVolumes backed by a directory on the node.
+#
+# Scoped to the GPU node: srv-gpu01 is an nspawn container on monster, whose
+# /var/lib/local-volumes is a bind of monster's /var/lib/srv-gpu01-volumes
+# (nixos-config: system/picon-gpu-node). The directory lives outside the
+# node's tree, so volumes (model files, caches) survive rebuilding the node.
+# Everything else in picon keeps using Longhorn.
+#
+# StorageClass `local-path`:
+#   - only srv-gpu01 is in nodePathMap and allowedTopologies; there is no
+#     default path, so the class can't create volumes anywhere else
+#   - WaitForFirstConsumer: the volume is created once the pod is scheduled
+#   - Retain: deleting a PVC keeps the directory (and the PV, Released);
+#     clean up by hand when the data is really no longer wanted
+repositories: []
+
+releases:
+  - name: local-path-provisioner
+    namespace: local-path-storage
+    # The chart isn't published to a Helm repository; it lives in the repo.
+    chart: git::https://github.com/rancher/local-path-provisioner.git@deploy/chart/local-path-provisioner?ref=v0.0.37
+    values:
+      - image:
+          tag: v0.0.37
+        # The helper pod creates (and, with Delete, removes) the directories.
+        helperImage:
+          tag: "1.37.0"
+
+        storageClass:
+          name: local-path
+          defaultClass: false
+          reclaimPolicy: Retain
+          volumeBindingMode: WaitForFirstConsumer
+          allowedTopologies:
+            - matchLabelExpressions:
+                - key: kubernetes.io/hostname
+                  values:
+                    - srv-gpu01
+
+        nodePathMap:
+          - node: srv-gpu01
+            paths:
+              - /var/lib/local-volumes
+
+        configmap:
+          helperPod:
+            # The helper pod runs on the volume's node, which carries the GPU
+            # node's taint.
+            tolerations:
+              - key: hive.internal/gpu
+                operator: Exists
+                effect: NoSchedule
+
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 128Mi

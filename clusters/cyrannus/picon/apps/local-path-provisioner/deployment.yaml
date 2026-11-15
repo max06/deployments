@@ -1,0 +1,8 @@
+apps:
+  - template: local-path-provisioner
+
+settings:
+  branch: main
+  autoSync: false
+  # Argo CD creates (only) this namespace on sync.
+  namespace: local-path-storage
