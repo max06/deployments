@@ -61,7 +61,9 @@ tasks:
       api_url: "{{ outputs.jmap_session.body | jq('.apiUrl') | first }}"
 
   # Email/query (unread, not yet tagged unparsable, oldest first) and
-  # Email/get (decoded HTML body) in one round trip.
+  # Email/get in one round trip. Metadata only: a PayPal mail is ~50 KB of
+  # HTML, and a task result must stay below Kestra's 1 MB queue message
+  # limit, so each loop iteration fetches its own body (get_body).
   - id: fetch_unread
     type: io.kestra.plugin.core.http.Request
     method: POST
@@ -86,21 +88,18 @@ tasks:
           ["Email/get", {
             "accountId": outputs.jmap.values.account_id,
             "#ids": {"resultOf": "query", "name": "Email/query", "path": "/ids"},
-            "properties": ["id", "subject", "receivedAt", "htmlBody", "bodyValues"],
-            "fetchHTMLBodyValues": true
+            "properties": ["id", "subject", "receivedAt"]
           }, "get"]
         ]
       } }}
 
-  # One compact object per mail: id, subject, receivedAt and the HTML body.
+  # One compact object per mail: id, subject, receivedAt.
   - id: unread
     type: io.kestra.plugin.core.output.OutputValues
     values:
       emails: >-
         {{ outputs.fetch_unread.body
-           | jq('[.methodResponses[1][1].list[]
-                 | {id, subject, receivedAt,
-                    html: (.htmlBody[0].partId as $part | .bodyValues[$part].value)}]')
+           | jq('[.methodResponses[1][1].list[] | {id, subject, receivedAt}]')
            | first | toJson }}
 
   - id: if_any
@@ -112,12 +111,37 @@ tasks:
         values: "{{ outputs.unread.values.emails }}"
         concurrencyLimit: 1
         tasks:
+          # The decoded HTML body of this one mail.
+          - id: get_body
+            type: io.kestra.plugin.core.http.Request
+            method: POST
+            uri: "{{ outputs.jmap.values.api_url }}"
+            headers:
+              Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+            contentType: application/json
+            body: |
+              {{ {
+                "using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+                "methodCalls": [
+                  ["Email/get", {
+                    "accountId": outputs.jmap.values.account_id,
+                    "ids": [fromJson(item.value).id],
+                    "properties": ["htmlBody", "bodyValues"],
+                    "fetchHTMLBodyValues": true
+                  }, "body"]
+                ]
+              } }}
+
           - id: parse
             type: io.kestra.plugin.core.flow.Subflow
             namespace: homelab.finance
             flowId: paypal_parse_confirmation
             inputs:
-              body: "{{ fromJson(item.value).html }}"
+              body: >-
+                {{ outputs.get_body.body
+                   | jq('.methodResponses[0][1].list[0]
+                         | .htmlBody[0].partId as $part | .bodyValues[$part].value')
+                   | first }}
 
           - id: if_payment
             type: io.kestra.plugin.core.flow.If
