@@ -38,7 +38,10 @@ variables:
   jmap_session_url: https://api.fastmail.com/jmap/session
   # JMAP id of Finance/Payments (the mailboxid in the sieve rule).
   mailbox_id: P1Yk
-  batch_size: 25
+  # Small on purpose: no time pressure on the backlog, and a mistake in the
+  # YNAB request costs at most 5 transactions to clean up. Runs can also be
+  # started by hand in the UI.
+  batch_size: 5
   unparsed_keyword: $kestra_unparsed
   # First 30 characters of the payee (as in the make.com scenario), cut
   # without an ellipsis; safe for shorter names, unlike a fixed slice.
