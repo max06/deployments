@@ -1,0 +1,6 @@
+apps:
+  - template: kestra
+
+settings:
+  branch: main
+  autoSync: false

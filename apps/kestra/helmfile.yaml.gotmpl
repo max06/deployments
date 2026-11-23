@@ -1,0 +1,201 @@
+# Kestra (https://kestra.io) — workflow orchestration, flows as YAML.
+# Evaluation deployment: open-source edition, standalone mode (webserver,
+# executor, scheduler and worker in one pod).
+#
+# Releases:
+#
+#   kestra-extras  bedag/raw  CNPG Cluster `kestra-db`, the internal-storage
+#                             PVC and the basic-auth Secret
+#   kestra         kestra     the Kestra standalone Deployment
+#
+# Database: a CloudNativePG Cluster (apps/cloudnative-pg must be synced
+# first: CRDs). CNPG generates the login for the `kestra` role itself and
+# stores it in the Secret `kestra-db-app` — no DB password in this repo.
+# Kestra crash-loops until the database is ready on the very first sync;
+# that resolves itself. Kestra runs its schema migrations on startup.
+#
+# Internal storage (execution inputs/outputs, files): local, on a Longhorn
+# RWO volume. Hence `Recreate` — a rolling update would try to attach the
+# volume to two pods at once. Switch to S3 before scaling out.
+#
+# Authentication: the open-source edition has one basic-auth account. Its
+# credentials come from this deployment's values.sops.yaml
+# (`kestra.basic_auth_username` / `kestra.basic_auth_password`). Setting
+# them makes Kestra skip its first-launch setup page, which would otherwise
+# be reachable by anyone who gets to the ingress first.
+#
+# Script tasks: Kestra's default task runner is Docker, served by a rootless
+# Docker-in-Docker sidecar that has to run privileged. Disabled for now, so
+# script tasks (Python, Shell, …) need `taskRunner: io.kestra.plugin.core.runner.Process`
+# or fail. Core tasks (HTTP, mail, logs, flow control) work as they are.
+#
+# Access model: internal only. The ingress is bound to traefik's webinternal
+# entrypoint (LAN-only ipAllowList middleware), same as homepage and dsh.
+
+repositories:
+  - name: bedag
+    url: https://bedag.github.io/helm-charts/
+  - name: kestra
+    url: https://helm.kestra.io/
+
+releases:
+  # Database, storage and credentials. Listed first so they exist before the
+  # Kestra pod references them.
+  - name: kestra-extras
+    namespace: kestra
+    chart: bedag/raw
+    version: 2.0.2
+    values:
+      - resources:
+          - apiVersion: v1
+            kind: Secret
+            metadata:
+              name: kestra-basic-auth
+            stringData:
+              username: {{ .Values.kestra.basic_auth_username | quote }}
+              password: {{ .Values.kestra.basic_auth_password | quote }}
+
+          - apiVersion: v1
+            kind: PersistentVolumeClaim
+            metadata:
+              name: kestra-storage
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              storageClassName: longhorn
+              resources:
+                requests:
+                  storage: 10Gi
+
+          - apiVersion: postgresql.cnpg.io/v1
+            kind: Cluster
+            metadata:
+              name: kestra-db
+            spec:
+              # A single instance: Longhorn already replicates the volume
+              # across nodes (same reasoning as matrix-db).
+              instances: 1
+              imageName: ghcr.io/cloudnative-pg/postgresql:17.12-standard-trixie
+
+              storage:
+                storageClass: longhorn
+                size: 10Gi
+
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  memory: 1Gi
+
+              # Creates database `kestra`, owned by role `kestra`, and the
+              # Secret `kestra-db-app` with its generated password.
+              bootstrap:
+                initdb:
+                  database: kestra
+                  owner: kestra
+
+  - name: kestra
+    namespace: kestra
+    chart: kestra/kestra
+    version: 2.0.12
+    values:
+      - # Stable resource names regardless of how the release name is derived.
+        fullnameOverride: kestra
+
+        common:
+          strategy:
+            type: Recreate
+
+          # The image runs as the non-root user `kestra` (uid/gid 1000); the
+          # fresh Longhorn volume is root-owned until fsGroup chowns it.
+          podSecurityContext:
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              memory: 2Gi
+
+          extraEnv:
+            - name: KESTRA_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: kestra-db-app
+                  key: username
+            - name: KESTRA_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kestra-db-app
+                  key: password
+            - name: KESTRA_BASIC_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: kestra-basic-auth
+                  key: username
+            - name: KESTRA_BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kestra-basic-auth
+                  key: password
+
+          extraVolumes:
+            - name: storage
+              persistentVolumeClaim:
+                claimName: kestra-storage
+          extraVolumeMounts:
+            - name: storage
+              mountPath: /app/storage
+
+        # No Docker-in-Docker sidecar (see header).
+        deployments:
+          standalone:
+            dind:
+              enabled: false
+        dind:
+          enabled: false
+
+        # Kestra's application.yml. `${…}` placeholders are resolved by
+        # Kestra from the environment at startup (extraEnv above), so no
+        # credential ends up in the ConfigMap.
+        configurations:
+          application:
+            kestra:
+              url: "https://kestra.{{ .Values.primary_domain }}/"
+              repository:
+                type: postgres
+              queue:
+                type: postgres
+              storage:
+                type: local
+                local:
+                  base-path: /app/storage
+              server:
+                basic-auth:
+                  username: "${KESTRA_BASIC_AUTH_USERNAME}"
+                  password: "${KESTRA_BASIC_AUTH_PASSWORD}"
+            datasources:
+              postgres:
+                # CNPG's read-write Service for the primary.
+                url: jdbc:postgresql://kestra-db-rw:5432/kestra
+                driver-class-name: org.postgresql.Driver
+                username: "${KESTRA_DB_USERNAME}"
+                password: "${KESTRA_DB_PASSWORD}"
+
+        ingress:
+          enabled: true
+          annotations:
+            # LAN-only: route exclusively through the webinternal entrypoint.
+            traefik.ingress.kubernetes.io/router.entrypoints: webinternal
+            # Point external-dns at the internal traefik LoadBalancer
+            # explicitly; traefik does not publish the LB address into
+            # Ingress status here.
+            external-dns.alpha.kubernetes.io/target: 192.168.30.241
+          hosts:
+            - host: "kestra.{{ .Values.primary_domain }}"
+              paths:
+                - path: /
+                  pathType: Prefix
