@@ -1,0 +1,34 @@
+id: sync_flows_from_git
+namespace: homelab.system
+description: |
+  GitOps for flows: applies apps/kestra/flows/ from the main branch of
+  max06/deployments to the `homelab` namespace tree every 5 minutes.
+  Sub-directories map to child namespaces (finance/ -> homelab.finance).
+
+  Git is the source of truth: a flow edited in the UI is overwritten by the
+  next sync, and a flow in homelab.* that is missing from Git is deleted.
+  Experiment in another namespace (e.g. `playground`) to keep UI edits.
+
+  This flow syncs itself too. Bootstrap: paste it into the UI once (namespace
+  homelab.system, same id) and run it.
+
+  The repository is public, so cloning needs no credentials. Writing flows
+  goes through the Kestra API; the open-source edition derives those
+  credentials from the basic-auth login. The API is called on localhost:
+  the external URL is only reachable from the LAN, not from the pod.
+
+tasks:
+  - id: sync
+    type: io.kestra.plugin.git.SyncFlows
+    url: https://github.com/max06/deployments
+    branch: main
+    gitDirectory: apps/kestra/flows
+    targetNamespace: homelab
+    includeChildNamespaces: true
+    delete: true
+    kestraUrl: http://localhost:8080
+
+triggers:
+  - id: every_5_minutes
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/5 * * * *"

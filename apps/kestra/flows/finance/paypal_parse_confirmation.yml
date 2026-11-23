@@ -1,0 +1,92 @@
+id: paypal_parse_confirmation
+namespace: homelab.finance
+description: |
+  Extracts amount, payee, transaction date and transaction ID from a German
+  PayPal payment confirmation. PayPal sends HTML only, so the body is first
+  reduced to plain text: tags stripped, the common entities decoded, every
+  whitespace run (non-breaking spaces included) collapsed into one space.
+
+  Pure expressions, no side effects: called by paypal_to_ynab for every
+  mail, and exposed as an MCP tool to test the patterns against samples.
+
+inputs:
+  - id: body
+    type: STRING
+    description: HTML (or plain-text) body of a PayPal payment confirmation mail.
+
+variables:
+  # Single-quoted YAML keeps backslashes literal; variables are not rendered,
+  # so each pattern reaches the regex filters unchanged (Java syntax).
+  style_and_script_regex: '(?is)<(style|script)\b.*?</\1>'
+  tag_regex: '<[^>]+>'
+  # Java's \s does not include the non-breaking space PayPal puts around "€".
+  whitespace_regex: '[\s\u00a0]+'
+  # Groups: 1 = amount ("12,40"), 2 = payee, 3 = the text that ends the payee.
+  payment_regex: '€?(?<amount>\d+,\d{2})\s*(?:€\s*)?EUR an (?<payee>.+?)\s+(\(.*|autorisiert|gezahlt)'
+  transaction_date_regex: 'Transaktionsdatum:?\s*(\d{2}\.\d{2}\.\d{4})'
+  german_date_regex: '(\d{2})\.(\d{2})\.(\d{4})'
+  # PayPal transaction codes are 17 upper-case alphanumerics.
+  transaction_id_regex: 'Transaktionscode:?\s*([0-9A-Z]{17})'
+
+tasks:
+  - id: to_text
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      text: >-
+        {{ inputs.body
+           | regexReplace(vars.style_and_script_regex, ' ')
+           | regexReplace(vars.tag_regex, ' ')
+           | replace({'&nbsp;': ' ', '&euro;': '€', '&#8364;': '€', '&amp;': '&'})
+           | regexReplace(vars.whitespace_regex, ' ')
+           | trim }}
+
+  - id: extract
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      amount: "{{ outputs.to_text.values.text | regexExtract(vars.payment_regex, 1) | default('') }}"
+      payee: "{{ outputs.to_text.values.text | regexExtract(vars.payment_regex, 2) | default('') | trim }}"
+      # dd.MM.yyyy -> yyyy-MM-dd, as plain string surgery (no time zone involved).
+      transaction_date: >-
+        {{ outputs.to_text.values.text
+           | regexExtract(vars.transaction_date_regex, 1) | default('')
+           | regexReplace(vars.german_date_regex, '$3-$2-$1') }}
+      transaction_id: "{{ outputs.to_text.values.text | regexExtract(vars.transaction_id_regex, 1) | default('') }}"
+
+outputs:
+  - id: matched
+    type: BOOL
+    description: True when amount, payee and transaction ID were all found.
+    value: >-
+      {{ outputs.extract.values.amount is not empty
+         and outputs.extract.values.payee is not empty
+         and outputs.extract.values.transaction_id is not empty }}
+  - id: amount
+    type: STRING
+    description: Amount as written in the mail, e.g. "12,40" (EUR).
+    value: "{{ outputs.extract.values.amount }}"
+  - id: payee
+    type: STRING
+    value: "{{ outputs.extract.values.payee }}"
+  - id: transaction_date
+    type: STRING
+    description: PayPal's transaction date as yyyy-MM-dd, empty if not found.
+    value: "{{ outputs.extract.values.transaction_date }}"
+  - id: transaction_id
+    type: STRING
+    value: "{{ outputs.extract.values.transaction_id }}"
+
+triggers:
+  - id: mcp
+    type: io.kestra.plugin.core.trigger.McpToolTrigger
+    toolName: parse_paypal_confirmation
+    title: Parse a PayPal payment confirmation
+    toolDescription: >-
+      Extracts amount (EUR, German decimal comma), payee, transaction date
+      and PayPal transaction ID from the HTML or plain-text body of a German
+      PayPal payment confirmation mail. Returns matched=false when amount,
+      payee or transaction ID is missing. Read-only: creates nothing anywhere.
+    annotations:
+      readOnly: true
+      destructive: false
+      idempotent: true
+      openWorld: false

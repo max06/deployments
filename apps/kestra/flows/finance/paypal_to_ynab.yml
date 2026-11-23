@@ -1,0 +1,209 @@
+id: paypal_to_ynab
+namespace: homelab.finance
+description: |
+  Turns PayPal payment confirmations into YNAB transactions.
+
+  A Fastmail sieve rule files the confirmations (header X-Email-Type-Id:
+  RT001736) into Finance/Payments, unread. Every 15 minutes this flow asks
+  Fastmail's JMAP API for the oldest unread mails in that mailbox, and for
+  each one:
+
+  - parsable (paypal_parse_confirmation): creates an unapproved, blue-flagged
+    outflow on the YNAB account, dated with PayPal's transaction date (the mail's
+    receive date if the body has none), then marks the mail read;
+  - not parsable: tags the mail with the keyword $kestra_unparsed so later
+    runs skip it, and logs a warning. The mail stays unread.
+
+  A failed YNAB request fails the iteration and leaves the mail unread, so
+  the next run retries it.
+
+  Duplicates: the YNAB import_id is "PP:<transaction id>". YNAB ignores a
+  transaction whose import_id it already knows, so a mail processed twice
+  creates one transaction.
+
+  Rate limits: at most `batch_size` mails per run keeps the YNAB calls well
+  below its 200 requests per hour, even while working off a backlog.
+
+  Secrets (SECRET_* env vars, from the kestra deployment's values.sops.yaml):
+  FASTMAIL_JMAP_TOKEN (Fastmail API token, mail read/write),
+  YNAB_API_TOKEN, YNAB_BUDGET_ID, YNAB_ACCOUNT_ID. (FASTMAIL_USERNAME and
+  FASTMAIL_APP_PASSWORD are IMAP credentials kept for other flows.)
+
+concurrency:
+  # Never two runs at once: both would pick the same unread mails.
+  limit: 1
+  behavior: CANCEL
+
+variables:
+  jmap_session_url: https://api.fastmail.com/jmap/session
+  # JMAP id of Finance/Payments (the mailboxid in the sieve rule).
+  mailbox_id: P1Yk
+  batch_size: 25
+  unparsed_keyword: $kestra_unparsed
+  # First 30 characters of the payee (as in the make.com scenario), cut
+  # without an ellipsis; safe for shorter names, unlike a fixed slice.
+  payee_max_regex: '^.{1,30}'
+
+tasks:
+  # The session names the account id and the API endpoint.
+  - id: jmap_session
+    type: io.kestra.plugin.core.http.Request
+    uri: "{{ vars.jmap_session_url }}"
+    headers:
+      Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+
+  - id: jmap
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      account_id: >-
+        {{ outputs.jmap_session.body
+           | jq('.primaryAccounts["urn:ietf:params:jmap:mail"]') | first }}
+      api_url: "{{ outputs.jmap_session.body | jq('.apiUrl') | first }}"
+
+  # Email/query (unread, not yet tagged unparsable, oldest first) and
+  # Email/get (decoded HTML body) in one round trip.
+  - id: fetch_unread
+    type: io.kestra.plugin.core.http.Request
+    method: POST
+    uri: "{{ outputs.jmap.values.api_url }}"
+    headers:
+      Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+    contentType: application/json
+    body: |
+      {{ {
+        "using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+        "methodCalls": [
+          ["Email/query", {
+            "accountId": outputs.jmap.values.account_id,
+            "filter": {"operator": "AND", "conditions": [
+              {"inMailbox": vars.mailbox_id},
+              {"notKeyword": "$seen"},
+              {"notKeyword": vars.unparsed_keyword}
+            ]},
+            "sort": [{"property": "receivedAt", "isAscending": true}],
+            "limit": vars.batch_size
+          }, "query"],
+          ["Email/get", {
+            "accountId": outputs.jmap.values.account_id,
+            "#ids": {"resultOf": "query", "name": "Email/query", "path": "/ids"},
+            "properties": ["id", "subject", "receivedAt", "htmlBody", "bodyValues"],
+            "fetchHTMLBodyValues": true
+          }, "get"]
+        ]
+      } }}
+
+  # One compact object per mail: id, subject, receivedAt and the HTML body.
+  - id: unread
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      emails: >-
+        {{ outputs.fetch_unread.body
+           | jq('[.methodResponses[1][1].list[]
+                 | {id, subject, receivedAt,
+                    html: (.htmlBody[0].partId as $part | .bodyValues[$part].value)}]')
+           | first | toJson }}
+
+  - id: if_any
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ fromJson(outputs.unread.values.emails) | length > 0 }}"
+    then:
+      - id: each_email
+        type: io.kestra.plugin.core.flow.Loop
+        values: "{{ outputs.unread.values.emails }}"
+        concurrencyLimit: 1
+        tasks:
+          - id: parse
+            type: io.kestra.plugin.core.flow.Subflow
+            namespace: homelab.finance
+            flowId: paypal_parse_confirmation
+            inputs:
+              body: "{{ fromJson(item.value).html }}"
+
+          - id: if_payment
+            type: io.kestra.plugin.core.flow.If
+            condition: "{{ outputs.parse.outputs.matched }}"
+            then:
+              - id: create_ynab_transaction
+                type: io.kestra.plugin.core.http.Request
+                method: POST
+                uri: "https://api.ynab.com/v1/budgets/{{ secret('YNAB_BUDGET_ID') }}/transactions"
+                headers:
+                  Authorization: "Bearer {{ secret('YNAB_API_TOKEN') }}"
+                contentType: application/json
+                # YNAB amounts are milliunits: "12,40" -> "1240" -> -12400
+                # (integer math, outflow is negative). The map literal is
+                # serialized to JSON, so payee names need no escaping.
+                body: |
+                  {{ {
+                    "transactions": [{
+                      "account_id": secret('YNAB_ACCOUNT_ID'),
+                      "date": (outputs.parse.outputs.transaction_date is not empty
+                               ? outputs.parse.outputs.transaction_date
+                               : (fromJson(item.value).receivedAt | date('yyyy-MM-dd', timeZone='Europe/Berlin'))),
+                      "amount": ((outputs.parse.outputs.amount | replace({',': ''}) | number) * -10),
+                      "payee_name": (outputs.parse.outputs.payee | regexExtract(vars.payee_max_regex) | trim),
+                      "memo": "PayPal " ~ outputs.parse.outputs.transaction_id,
+                      "cleared": "uncleared",
+                      "approved": false,
+                      "flag_color": "blue",
+                      "import_id": "PP:" ~ outputs.parse.outputs.transaction_id
+                    }]
+                  } }}
+
+              - id: mark_read
+                type: io.kestra.plugin.core.http.Request
+                method: POST
+                uri: "{{ outputs.jmap.values.api_url }}"
+                headers:
+                  Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+                contentType: application/json
+                body: |
+                  {{ {
+                    "using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+                    "methodCalls": [
+                      ["Email/set", {
+                        "accountId": outputs.jmap.values.account_id,
+                        "update": {(fromJson(item.value).id): {"keywords/$seen": true}}
+                      }, "seen"]
+                    ]
+                  } }}
+
+              - id: log_result
+                type: io.kestra.plugin.core.log.Log
+                message: >-
+                  YNAB {{ outputs.create_ynab_transaction.code }}:
+                  {{ outputs.parse.outputs.amount }} EUR to
+                  {{ outputs.parse.outputs.payee }} on
+                  {{ outputs.parse.outputs.transaction_date }}
+                  ({{ outputs.parse.outputs.transaction_id }}), mail marked read.
+            else:
+              - id: tag_unparsed
+                type: io.kestra.plugin.core.http.Request
+                method: POST
+                uri: "{{ outputs.jmap.values.api_url }}"
+                headers:
+                  Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+                contentType: application/json
+                body: |
+                  {{ {
+                    "using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+                    "methodCalls": [
+                      ["Email/set", {
+                        "accountId": outputs.jmap.values.account_id,
+                        "update": {(fromJson(item.value).id): {("keywords/" ~ vars.unparsed_keyword): true}}
+                      }, "tag"]
+                    ]
+                  } }}
+
+              - id: log_skipped
+                type: io.kestra.plugin.core.log.Log
+                level: WARN
+                message: >-
+                  Not a parsable payment confirmation, tagged
+                  {{ vars.unparsed_keyword }} and left unread:
+                  "{{ fromJson(item.value).subject }}" ({{ fromJson(item.value).receivedAt }})
+
+triggers:
+  - id: every_15_minutes
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/15 * * * *"

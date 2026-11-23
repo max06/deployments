@@ -24,6 +24,15 @@
 # them makes Kestra skip its first-launch setup page, which would otherwise
 # be reachable by anyone who gets to the ingress first.
 #
+# Flow secrets: the open-source edition reads secrets from environment
+# variables named `SECRET_<NAME>`, holding the base64-encoded value. Every
+# entry of `kestra.secrets` in this deployment's values.sops.yaml becomes
+# one such variable (Secret `kestra-flow-secrets`, base64 applied here), and
+# flows read it with the expression secret('<NAME>') (inside double curly
+# braces, not spelled out here: this file is a Go template). Names: upper case, digits and
+# underscores. A checksum annotation restarts the pod when a value changes,
+# since environment variables are only read at startup.
+#
 # Script tasks: Kestra's default task runner is Docker, served by a rootless
 # Docker-in-Docker sidecar that has to run privileged. Disabled for now, so
 # script tasks (Python, Shell, …) need `taskRunner: io.kestra.plugin.core.runner.Process`
@@ -54,6 +63,15 @@ releases:
             stringData:
               username: {{ .Values.kestra.basic_auth_username | quote }}
               password: {{ .Values.kestra.basic_auth_password | quote }}
+
+          - apiVersion: v1
+            kind: Secret
+            metadata:
+              name: kestra-flow-secrets
+            stringData:
+            {{- range $secretName, $secretValue := .Values.kestra.secrets }}
+              SECRET_{{ $secretName }}: {{ $secretValue | toString | b64enc | quote }}
+            {{- end }}
 
           - apiVersion: v1
             kind: PersistentVolumeClaim
@@ -141,6 +159,14 @@ releases:
                 secretKeyRef:
                   name: kestra-basic-auth
                   key: password
+
+          # Flow secrets (see header), as SECRET_<NAME> variables.
+          extraEnvFrom:
+            - secretRef:
+                name: kestra-flow-secrets
+
+          podAnnotations:
+            checksum/flow-secrets: {{ .Values.kestra.secrets | toJson | sha256sum | quote }}
 
           extraVolumes:
             - name: storage
