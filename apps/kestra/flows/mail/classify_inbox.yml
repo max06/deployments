@@ -256,3 +256,6 @@ triggers:
   - id: every_2_minutes
     type: io.kestra.plugin.core.trigger.Schedule
     cron: "*/2 * * * *"
+    # After downtime, run once instead of once per missed slot; every run
+    # picks up whatever is unlabeled anyway.
+    recoverMissedSchedules: LAST

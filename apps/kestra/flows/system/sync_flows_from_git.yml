@@ -37,3 +37,6 @@ triggers:
   - id: every_5_minutes
     type: io.kestra.plugin.core.trigger.Schedule
     cron: "*/5 * * * *"
+    # After downtime, run once instead of once per missed slot (the default
+    # ALL replayed ~540 syncs after the 45-hour hang in November 2026).
+    recoverMissedSchedules: LAST
