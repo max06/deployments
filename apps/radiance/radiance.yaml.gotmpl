@@ -24,13 +24,40 @@
 
 {{- /* Model entries: the Radiance `models:` settings plus where the file
        comes from. `file` lands in /models; `sha256` is the LFS oid from
-       Hugging Face. */}}
+       Hugging Face.
+
+       ling-3.0-tiny: the light model for automation (Kestra's mail
+       classifier). A MoE with 7.9B weights and 1.3B active per token:
+       7.9 GiB on the card, ~230 tokens/s, so it leaves room next to it for
+       speech models. Needs Radiance 2.1.0 or later.
+       - chat-template-kwargs turns the checkpoint's thinking mode off for
+         every request: classification wants a short, fast answer.
+       - max-model-len 32k: mail bodies are cut to a few KB before they get
+         here, and a shorter worst case keeps the KV pool small.
+       - KV cache stays bf16 (the default): int8 is documented per model
+         family, and this one's latent attention isn't listed.
+
+       qwen3.8-27b: the dense model for chat and heavier work. Loads only
+       when a request names it, and then pushes idle models off the card.
+       Aliased `default`: with more than one model, a request without a
+       `model` field goes to the one named or aliased so, as it did when
+       this was the only model. */}}
 {{- $models := dict
+  "ling-3.0-tiny" (dict
+    "file" "ling-3.0-tiny-iq8r.rad"
+    "url" "https://huggingface.co/StillDeadcode/ling-3.0-tiny-iq8r/resolve/main/ling-3.0-tiny-iq8r.rad"
+    "sha256" "f78791a64d47d85dec0e5cafbd53fcb2f6416e8dc2df9cc29a65d4fe1c98ff10"
+    "settings" (dict
+      "tp" 1
+      "max-num-seqs" 4
+      "max-model-len" 32768
+      "chat-template-kwargs" (dict "enable_thinking" false)))
   "qwen3.8-27b" (dict
     "file" "qwen3.8-27b-iq4r-l-v4.rad"
     "url" "https://huggingface.co/StillDeadcode/qwen3.8-27b-iqr-v4/resolve/main/qwen3.8-27b-iq4r-l-v4.rad"
     "sha256" "d57d1428218e20a4cd578c3e286f30a2e566e589c832bf5004f49e164cb48ae4"
     "settings" (dict
+      "aliases" (list "default")
       "tp" 1
       "max-num-seqs" 4
       "max-model-len" 131072
