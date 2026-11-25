@@ -71,17 +71,23 @@ variables:
 
     - personal: a real person writing to the recipient personally (friends,
       family, landlord, a craftsman, a reply in a conversation).
-    - finance: banking, account statements, invoices and bills, tax,
-      insurance, payment providers, contracts with money involved.
+    - finance: banking, account statements, invoices and bills, payments,
+      tax, insurance, contracts with money involved. Not finance: a service
+      announcing changes to its prices, plans or billing (notifications).
     - orders: order confirmations and receipts from shops and food or
       drink delivery services.
     - shipping: parcel tracking, delivery notices, carriers (DHL, Hermes, DPD,
       UPS), "your order has shipped".
-    - security: sign-in alerts, new devices, password resets, verification
-      and 2FA codes, account security notices.
+    - security: only about access to an account: sign-in alerts, new
+      devices, password resets, verification and 2FA codes, suspicious login
+      attempts. Not security: messages, replies or activity on a platform,
+      changes to prices, plans, billing, terms or privacy policies - those
+      are notifications.
     - notifications: automated notifications from services and platforms
-      (social networks, games, developer tools, apps, smart home), not sent
-      to sell something.
+      (social networks, Q&A sites, games, developer tools, apps, smart
+      home), including messages and replies there and announcements about
+      the service itself (plans, prices, billing, terms); not sent to sell
+      something.
     - newsletter: marketing, promotions, newsletters, offers, surveys.
     - career: recruiters, job offers and job alerts, application processes.
     - suspicious: phishing or scam attempts, e.g. a sender that doesn't match
