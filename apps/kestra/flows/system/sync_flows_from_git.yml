@@ -27,6 +27,11 @@ tasks:
     includeChildNamespaces: true
     delete: true
     kestraUrl: http://localhost:8080
+    # A healthy sync takes seconds. On 2026-11-24 one hung for 45 hours
+    # without an error, and the schedule waits for the running execution,
+    # so nothing synced in that time. The timeout fails a hung run, so the
+    # next one can start.
+    timeout: PT5M
 
 triggers:
   - id: every_5_minutes
