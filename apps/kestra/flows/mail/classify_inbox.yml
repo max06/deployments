@@ -107,6 +107,10 @@ tasks:
   # Newest unlabeled inbox mails: in the inbox AND in none of the AI labels.
   # Metadata only (the 1 MB task-result limit); each iteration fetches its
   # own body.
+  # Header forms (RFC 8621, 4.1.2): asText is refused for headers that
+  # RFC 5322 or RFC 2369 define, List-Unsubscribe among them. The raw form
+  # (no suffix) works for every header and is enough to tell whether it is
+  # there.
   - id: fetch_unlabeled
     type: io.kestra.plugin.core.http.Request
     method: POST
@@ -133,10 +137,23 @@ tasks:
             "#ids": {"resultOf": "query", "name": "Email/query", "path": "/ids"},
             "properties": ["id", "subject", "receivedAt", "from",
                            "header:Authentication-Results:asText:all",
-                           "header:List-Unsubscribe:asText"]
+                           "header:List-Unsubscribe"]
           }, "get"]
         ]
       } | toJson }}
+
+  # JMAP answers a refused method call with HTTP 200 and an "error" entry
+  # in methodResponses; without this check the next step fails on a missing
+  # list instead of showing Fastmail's reason.
+  - id: require_query_ok
+    type: io.kestra.plugin.core.execution.Fail
+    condition: >-
+      {{ outputs.fetch_unlabeled.body
+         | jq('[.methodResponses[] | select(.[0] == "error")] | length') | first > 0 }}
+    errorMessage: >-
+      Fastmail refused the query:
+      {{ outputs.fetch_unlabeled.body
+         | jq('[.methodResponses[] | select(.[0] == "error") | .[1]]') | first | toJson }}
 
   # One compact object per mail. Fastmail adds its own
   # Authentication-Results on top, so the first one is Fastmail's verdict;
@@ -151,7 +168,7 @@ tasks:
                  from: ((.from // [])[0] // null
                         | if . == null then "" else ((.name // "") + " <" + .email + ">") end),
                  auth: ((.["header:Authentication-Results:asText:all"] // [])[0] // ""),
-                 bulk: (.["header:List-Unsubscribe:asText"] != null)
+                 bulk: (.["header:List-Unsubscribe"] != null)
                }]')
            | first | toJson }}
 
@@ -186,6 +203,16 @@ tasks:
                   }, "body"]
                 ]
               } | toJson }}
+
+          - id: require_body_ok
+            type: io.kestra.plugin.core.execution.Fail
+            condition: >-
+              {{ outputs.get_body.body
+                 | jq('[.methodResponses[] | select(.[0] == "error")] | length') | first > 0 }}
+            errorMessage: >-
+              Fastmail refused the body request:
+              {{ outputs.get_body.body
+                 | jq('[.methodResponses[] | select(.[0] == "error") | .[1]]') | first | toJson }}
 
           - id: classify
             type: io.kestra.plugin.core.flow.Subflow
