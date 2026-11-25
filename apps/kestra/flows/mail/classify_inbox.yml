@@ -1,0 +1,258 @@
+id: classify_inbox
+namespace: homelab.mail
+description: |
+  Labels inbox mails with the local LLM: every unlabeled mail in the inbox
+  gets one label below AI/ in Fastmail (AI/personal, AI/finance, ...).
+
+  Phase 1, labels only: nothing leaves the inbox, nothing is marked read or
+  flagged. Actions per category come once the labels have proven reliable.
+
+  Every 2 minutes the flow takes the `batch_size` newest inbox mails that
+  carry no AI/ label yet, so new mail is handled first and older mail
+  follows in later runs (backfill). For each one:
+
+  - fetches the text body (Fastmail decodes base64 and quoted-printable,
+    and caps the size with maxBodyValueBytes);
+  - classifies it with homelab.mail.classify_email;
+  - adds the label AI/<category>.
+
+  Processed means "has an AI/ label". To classify mails again (after a
+  prompt change, say), remove their AI/ labels in Fastmail.
+
+  Setup: the label AI with one sub-label per category of classify_email
+  must exist. A missing one fails the run with its name.
+
+  Failures: a failed LLM call fails the iteration (after classify_email's
+  retries), and the mail stays unlabeled for the next run.
+
+  Secrets: FASTMAIL_JMAP_TOKEN (Fastmail API token, mail read/write),
+  RADIANCE_API_KEY (through classify_email).
+
+concurrency:
+  # Never two runs at once: both would pick the same mails.
+  limit: 1
+  behavior: CANCEL
+
+variables:
+  jmap_session_url: https://api.fastmail.com/jmap/session
+  # Mails per run. Every 2 minutes that's up to 300 an hour, plenty for new
+  # mail and a steady backfill.
+  batch_size: 10
+  # Parent label of the categories.
+  label_parent: AI
+  # Body size Fastmail returns per part. Big HTML mails are mostly markup;
+  # classify_email keeps the first few KB of the text that remains.
+  max_body_bytes: 200000
+
+tasks:
+  # The session names the account id and the API endpoint.
+  - id: jmap_session
+    type: io.kestra.plugin.core.http.Request
+    uri: "{{ vars.jmap_session_url }}"
+    headers:
+      Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+
+  - id: jmap
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      account_id: >-
+        {{ outputs.jmap_session.body
+           | jq('.primaryAccounts["urn:ietf:params:jmap:mail"]') | first }}
+      api_url: "{{ outputs.jmap_session.body | jq('.apiUrl') | first }}"
+
+  # All mailboxes (labels): small, and it names the inbox and the AI labels.
+  - id: get_mailboxes
+    type: io.kestra.plugin.core.http.Request
+    method: POST
+    uri: "{{ outputs.jmap.values.api_url }}"
+    headers:
+      Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+    contentType: application/json
+    body: |
+      {{ {
+        "using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+        "methodCalls": [
+          ["Mailbox/get", {
+            "accountId": outputs.jmap.values.account_id,
+            "properties": ["id", "name", "parentId", "role"]
+          }, "mailboxes"]
+        ]
+      } | toJson }}
+
+  # inbox_id: the mailbox with role inbox.
+  # ai_labels: {"<category>": "<mailbox id>"} for the children of the
+  # top-level label AI ({} when there is no such label).
+  - id: labels
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      inbox_id: >-
+        {{ outputs.get_mailboxes.body
+           | jq('.methodResponses[0][1].list[] | select(.role == "inbox") | .id')
+           | first }}
+      ai_labels: >-
+        {{ outputs.get_mailboxes.body
+           | jq('.methodResponses[0][1].list as $all
+                 | (first($all[] | select(.name == "' ~ vars.label_parent ~ '" and .parentId == null) | .id) // "none") as $parent
+                 | [$all[] | select(.parentId == $parent) | {(.name): .id}] | add // {}')
+           | first | toJson }}
+
+  - id: require_labels
+    type: io.kestra.plugin.core.execution.Fail
+    condition: "{{ fromJson(outputs.labels.values.ai_labels) | length == 0 }}"
+    errorMessage: >-
+      No labels below "{{ vars.label_parent }}" in Fastmail. Create the label
+      {{ vars.label_parent }} with one sub-label per category of
+      homelab.mail.classify_email.
+
+  # Newest unlabeled inbox mails: in the inbox AND in none of the AI labels.
+  # Metadata only (the 1 MB task-result limit); each iteration fetches its
+  # own body.
+  - id: fetch_unlabeled
+    type: io.kestra.plugin.core.http.Request
+    method: POST
+    uri: "{{ outputs.jmap.values.api_url }}"
+    headers:
+      Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+    contentType: application/json
+    body: |
+      {{ {
+        "using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+        "methodCalls": [
+          ["Email/query", {
+            "accountId": outputs.jmap.values.account_id,
+            "filter": {"operator": "AND", "conditions": [
+              {"inMailbox": outputs.labels.values.inbox_id},
+              {"operator": "NOT", "conditions":
+                (outputs.labels.values.ai_labels | jq('[.[] | {inMailbox: .}]') | first)}
+            ]},
+            "sort": [{"property": "receivedAt", "isAscending": false}],
+            "limit": vars.batch_size
+          }, "query"],
+          ["Email/get", {
+            "accountId": outputs.jmap.values.account_id,
+            "#ids": {"resultOf": "query", "name": "Email/query", "path": "/ids"},
+            "properties": ["id", "subject", "receivedAt", "from",
+                           "header:Authentication-Results:asText:all",
+                           "header:List-Unsubscribe:asText"]
+          }, "get"]
+        ]
+      } | toJson }}
+
+  # One compact object per mail. Fastmail adds its own
+  # Authentication-Results on top, so the first one is Fastmail's verdict;
+  # forwarded mail carries older ones below it.
+  - id: unlabeled
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      emails: >-
+        {{ outputs.fetch_unlabeled.body
+           | jq('[.methodResponses[1][1].list[] | {
+                 id, subject: (.subject // ""), receivedAt,
+                 from: ((.from // [])[0] // null
+                        | if . == null then "" else ((.name // "") + " <" + .email + ">") end),
+                 auth: ((.["header:Authentication-Results:asText:all"] // [])[0] // ""),
+                 bulk: (.["header:List-Unsubscribe:asText"] != null)
+               }]')
+           | first | toJson }}
+
+  - id: if_any
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ fromJson(outputs.unlabeled.values.emails) | length > 0 }}"
+    then:
+      - id: each_email
+        type: io.kestra.plugin.core.flow.Loop
+        values: "{{ outputs.unlabeled.values.emails }}"
+        concurrencyLimit: 1
+        tasks:
+          # The text body of this one mail. textBody falls back to the HTML
+          # parts when a mail has no plain-text version.
+          - id: get_body
+            type: io.kestra.plugin.core.http.Request
+            method: POST
+            uri: "{{ outputs.jmap.values.api_url }}"
+            headers:
+              Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+            contentType: application/json
+            body: |
+              {{ {
+                "using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+                "methodCalls": [
+                  ["Email/get", {
+                    "accountId": outputs.jmap.values.account_id,
+                    "ids": [fromJson(item.value).id],
+                    "properties": ["textBody", "bodyValues"],
+                    "fetchTextBodyValues": true,
+                    "maxBodyValueBytes": vars.max_body_bytes
+                  }, "body"]
+                ]
+              } | toJson }}
+
+          - id: classify
+            type: io.kestra.plugin.core.flow.Subflow
+            namespace: homelab.mail
+            flowId: classify_email
+            inputs:
+              from: "{{ fromJson(item.value).from }}"
+              subject: "{{ fromJson(item.value).subject }}"
+              authentication_results: "{{ fromJson(item.value).auth }}"
+              bulk: "{{ fromJson(item.value).bulk }}"
+              body: >-
+                {{ outputs.get_body.body
+                   | jq('.methodResponses[0][1].list[0]
+                         | . as $mail | [($mail.textBody // [])[] | $mail.bodyValues[.partId].value // ""]
+                         | join("\n")')
+                   | first }}
+
+          - id: label_id
+            type: io.kestra.plugin.core.output.OutputValues
+            values:
+              id: "{{ fromJson(outputs.labels.values.ai_labels)[outputs.classify.outputs.category] ?? '' }}"
+
+          - id: require_label
+            type: io.kestra.plugin.core.execution.Fail
+            condition: "{{ outputs.label_id.values.id is empty }}"
+            errorMessage: >-
+              Label {{ vars.label_parent }}/{{ outputs.classify.outputs.category }}
+              is missing in Fastmail.
+
+          - id: add_label
+            type: io.kestra.plugin.core.http.Request
+            method: POST
+            uri: "{{ outputs.jmap.values.api_url }}"
+            headers:
+              Authorization: "Bearer {{ secret('FASTMAIL_JMAP_TOKEN') }}"
+            contentType: application/json
+            body: |
+              {{ {
+                "using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+                "methodCalls": [
+                  ["Email/set", {
+                    "accountId": outputs.jmap.values.account_id,
+                    "update": {(fromJson(item.value).id): {("mailboxIds/" ~ outputs.label_id.values.id): true}}
+                  }, "label"]
+                ]
+              } | toJson }}
+
+          # JMAP reports a refused update in the response, with HTTP 200.
+          - id: require_updated
+            type: io.kestra.plugin.core.execution.Fail
+            condition: >-
+              {{ outputs.add_label.body
+                 | jq('.methodResponses[0][1].notUpdated // {} | length') | first > 0 }}
+            errorMessage: >-
+              Fastmail refused the label:
+              {{ outputs.add_label.body | jq('.methodResponses[0][1].notUpdated') | first | toJson }}
+
+          - id: log_result
+            type: io.kestra.plugin.core.log.Log
+            message: >-
+              {{ vars.label_parent }}/{{ outputs.classify.outputs.category }}
+              {% if outputs.classify.outputs.dmarc_override %}(DMARC failed; model said
+              {{ outputs.classify.outputs.model_category }}){% endif %}:
+              "{{ fromJson(item.value).subject }}" from {{ fromJson(item.value).from }}
+              ({{ fromJson(item.value).receivedAt }}): {{ outputs.classify.outputs.reason }}
+
+triggers:
+  - id: every_2_minutes
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/2 * * * *"
