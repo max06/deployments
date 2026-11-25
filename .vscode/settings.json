@@ -1,8 +1,0 @@
-{
-    "conventionalCommits.scopes": [
-        "chart/homepage",
-        "charts"
-    ],
-    "python.analysis.autoImportCompletions": true,
-    "python.analysis.typeCheckingMode": "basic"
-}

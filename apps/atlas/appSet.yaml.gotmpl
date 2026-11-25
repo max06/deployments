@@ -80,7 +80,8 @@ applicationsets:
       spec:
         syncPolicy:
           automated:
-            enabled: {{`{{ eq (get .settings "autosync" | default "false") "true" }}`}}
+            # printf normalizes bool/string/missing: deployments write autoSync as a YAML bool
+            enabled: {{`{{ eq (printf "%v" (get .settings "autoSync" | default "false")) "true" }}`}}
         sources:
           - repoURL: https://github.com/max06/deployments
             targetRevision: {{`{{ get .settings "branch" | default "HEAD" }}`}}
