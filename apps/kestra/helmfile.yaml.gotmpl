@@ -131,12 +131,24 @@ releases:
             fsGroup: 1000
             fsGroupChangePolicy: OnRootMismatch
 
+          # Memory: without JVM options the heap is 25% of the limit (512 MiB
+          # at 2 GiB), and Kestra ran out of it on 2026-11-25, with RSS
+          # near the limit at the same time. Half of a 3 GiB limit is
+          # heap; the rest covers metaspace (every plugin's classes),
+          # threads and direct buffers.
           resources:
             requests:
               cpu: 250m
-              memory: 1Gi
+              memory: 1536Mi
             limits:
-              memory: 2Gi
+              memory: 3Gi
+
+          jvm:
+            # ExitOnOutOfMemoryError: an exhausted heap ends the process,
+            # and the kubelet restarts it. Without it, Kestra's own
+            # shutdown on OOM waited forever for a hung task, with the
+            # scheduler already stopped.
+            extraOpts: "-XX:MaxRAMPercentage=50 -XX:+ExitOnOutOfMemoryError"
 
           extraEnv:
             - name: KESTRA_DB_USERNAME
