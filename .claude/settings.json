@@ -1,0 +1,11 @@
+{
+  "extraKnownMarketplaces": {
+    "atlas": {
+      "source": { "source": "github", "repo": "max06/atlas" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "atlas@atlas": true
+  }
+}
