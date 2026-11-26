@@ -155,9 +155,12 @@ tasks:
       {{ outputs.fetch_unlabeled.body
          | jq('[.methodResponses[] | select(.[0] == "error") | .[1]]') | first | toJson }}
 
-  # One compact object per mail. Fastmail adds its own
-  # Authentication-Results on top, so the first one is Fastmail's verdict;
-  # forwarded mail carries older ones below it.
+  # One compact object per mail.
+  # auth: Fastmail writes its verdict as several Authentication-Results
+  # headers, one per check (x-ptr, bimi, arc, dkim + dmarc), all with the
+  # authserv-id <host>.messagingengine.com. They are joined here, one per
+  # line. Headers of other servers are left out: forwarded mail carries
+  # the old provider's verdict, and a sender can write any header it likes.
   - id: unlabeled
     type: io.kestra.plugin.core.output.OutputValues
     values:
@@ -167,7 +170,9 @@ tasks:
                  id, subject: (.subject // ""), receivedAt,
                  from: ((.from // [])[0] // null
                         | if . == null then "" else ((.name // "") + " <" + .email + ">") end),
-                 auth: ((.["header:Authentication-Results:asText:all"] // [])[0] // "")
+                 auth: ([(.["header:Authentication-Results:asText:all"] // [])[]
+                         | select(test("^ *[A-Za-z0-9.-]+[.]messagingengine[.]com *;"))]
+                        | join("\n"))
                }]')
            | first | toJson }}
 
@@ -298,6 +303,9 @@ tasks:
           - id: dmarc_override
             type: BOOL
             value: "{{ outputs.classify.outputs.dmarc_override ?? false }}"
+          - id: sender_verified
+            type: STRING
+            value: "{{ outputs.classify.outputs.sender_verified ?? '' }}"
         # One mail that fails (LLM down, odd body) must not stop the others.
         # It stays unlabeled for the next run; require_all_ok below still
         # marks this run as failed.
@@ -311,6 +319,7 @@ tasks:
         message: |-
           {{ outputs.each_email.iterationCount }} mail(s), iterations by state: {{ outputs.each_email.terminatedIterations | toJson }}{% for result in outputs.each_email.outputs %}{% if (result.outputs.category ?? '') is not empty %}
           {{ vars.label_parent }}/{{ result.outputs.category }}{% if result.outputs.dmarc_override %} (DMARC failed; model said {{ result.outputs.model_category }}){% endif %}: "{{ result.outputs.subject }}" from {{ result.outputs.from }} ({{ result.outputs.received_at }})
+              sender verified: {{ result.outputs.sender_verified }}
               {{ result.outputs.reason }}{% endif %}{% endfor %}
 
       - id: require_all_ok

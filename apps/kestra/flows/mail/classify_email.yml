@@ -36,7 +36,9 @@ inputs:
   - id: authentication_results
     type: STRING
     defaults: ""
-    description: Fastmail's own Authentication-Results header (the topmost one).
+    description: >-
+      Fastmail's own Authentication-Results headers (authserv-id
+      *.messagingengine.com), one per line.
 
 variables:
   radiance_url: http://radiance.radiance:8000/v1/chat/completions
@@ -64,6 +66,8 @@ variables:
   # "dmarc=pass" from counting as "arc=pass".
   dmarc_fail_regex: '(?i)\bdmarc=fail\b'
   dmarc_pass_regex: '(?i)\bdmarc=pass\b'
+  # Any DMARC result other than pass (none, fail, temperror, permerror).
+  dmarc_not_pass_regex: '(?i)\bdmarc=(?!pass\b)'
   arc_pass_regex: '(?i)\barc=pass\b'
   # The domain of the address in From ("Name <user@domain>"): group 1.
   from_domain_regex: '@([^>\s]+)'
@@ -126,28 +130,34 @@ tasks:
            | regexExtract('(?s)^.{0,' ~ vars.max_body_chars ~ '}')
            | default('') }}
 
-  # One line for the model on Fastmail's sender check (the topmost
-  # Authentication-Results header). The model can't tell a real sender
-  # domain from a fake one by itself and tends to call legitimate mail
-  # phishing. DMARC pass only proves the mail comes from that domain, not
-  # that the domain belongs to the brand it names: lookalike domains pass too.
-  #   pass               -> yes, names the domain
+  # One line for the model on Fastmail's sender check (its
+  # Authentication-Results headers, joined by classify_inbox). The model
+  # can't tell a real sender domain from a fake one by itself and tends to
+  # call legitimate mail phishing. DMARC pass only proves the mail comes
+  # from that domain, not that the domain belongs to the brand it names:
+  # lookalike domains pass too.
   #   fail, no ARC pass  -> no (the override below makes it suspicious)
   #   fail, ARC pass     -> unknown: forwarded from the old addresses, the
   #                         forwarding broke DMARC
+  #   any other non-pass -> unknown (none, temperror, ...)
+  #   pass               -> yes, names the domain
   #   no DMARC result    -> unknown
+  # The order matters: a sender could add its own header claiming
+  # dmarc=pass, so "yes" needs pass and no other result anywhere.
   - id: sender_check
     type: io.kestra.plugin.core.output.OutputValues
     values:
       line: >-
         {%- set auth = inputs.authentication_results -%}
         {%- set domain = inputs.from | regexExtract(vars.from_domain_regex, 1) | default('the sender domain') -%}
-        {%- if auth | regexMatch(vars.dmarc_pass_regex) -%}
-        yes (DMARC pass), the mail really comes from {{ domain }}
-        {%- elseif (auth | regexMatch(vars.dmarc_fail_regex)) and not (auth | regexMatch(vars.arc_pass_regex)) -%}
+        {%- if (auth | regexMatch(vars.dmarc_fail_regex)) and not (auth | regexMatch(vars.arc_pass_regex)) -%}
         no, DMARC failed: the sender address may be forged
         {%- elseif auth | regexMatch(vars.dmarc_fail_regex) -%}
         unknown, forwarded mail
+        {%- elseif auth | regexMatch(vars.dmarc_not_pass_regex) -%}
+        unknown, DMARC gave no clear result
+        {%- elseif auth | regexMatch(vars.dmarc_pass_regex) -%}
+        yes (DMARC pass), the mail really comes from {{ domain }}
         {%- else -%}
         unknown, no DMARC result
         {%- endif -%}
@@ -231,6 +241,10 @@ outputs:
     type: BOOL
     description: True when the DMARC check replaced the model's answer.
     value: "{{ outputs.verdict.values.dmarc_override }}"
+  - id: sender_verified
+    type: STRING
+    description: The "Sender verified" line the model was given.
+    value: "{{ outputs.sender_check.values.line }}"
 
 triggers:
   - id: mcp
