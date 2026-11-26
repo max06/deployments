@@ -22,8 +22,13 @@ description: |
   Setup: the label AI with one sub-label per category of classify_email
   must exist. A missing one fails the run with its name.
 
+  Results: the task log_results logs every mail of the run (label, subject,
+  sender, the model's reason) in one entry of this execution's log.
+
   Failures: a failed LLM call fails the iteration (after classify_email's
-  retries), and the mail stays unlabeled for the next run.
+  retries), and the mail stays unlabeled for the next run. The other mails
+  are still processed; the run ends as failed (require_all_ok), and the
+  iteration's error is in the log view with the filter Kind = Loop.
 
   Secrets: FASTMAIL_JMAP_TOKEN (Fastmail API token, mail read/write),
   RADIANCE_API_KEY (through classify_email).
@@ -263,14 +268,59 @@ tasks:
               Fastmail refused the label:
               {{ outputs.add_label.body | jq('.methodResponses[0][1].notUpdated') | first | toJson }}
 
-          - id: log_result
-            type: io.kestra.plugin.core.log.Log
-            message: >-
-              {{ vars.label_parent }}/{{ outputs.classify.outputs.category }}
-              {% if outputs.classify.outputs.dmarc_override %}(DMARC failed; model said
-              {{ outputs.classify.outputs.model_category }}){% endif %}:
-              "{{ fromJson(item.value).subject }}" from {{ fromJson(item.value).from }}
-              ({{ fromJson(item.value).receivedAt }}): {{ outputs.classify.outputs.reason }}
+        # Every iteration is its own sub-execution, so its task outputs and
+        # logs stay there (log view: filter Kind = Loop). The values below are
+        # handed back to this execution as outputs.each_email.outputs: a list
+        # of {item: {value, iteration}, outputs: {<id>: ...}}, one entry per
+        # iteration. FETCH keeps them inline (10 small entries per run).
+        # `?? ''` keeps the evaluation from failing for an iteration that
+        # stopped before classify.
+        fetchType: FETCH
+        outputs:
+          - id: subject
+            type: STRING
+            value: "{{ fromJson(item.value).subject }}"
+          - id: from
+            type: STRING
+            value: "{{ fromJson(item.value).from }}"
+          - id: received_at
+            type: STRING
+            value: "{{ fromJson(item.value).receivedAt }}"
+          - id: category
+            type: STRING
+            value: "{{ outputs.classify.outputs.category ?? '' }}"
+          - id: model_category
+            type: STRING
+            value: "{{ outputs.classify.outputs.model_category ?? '' }}"
+          - id: reason
+            type: STRING
+            value: "{{ outputs.classify.outputs.reason ?? '' }}"
+          - id: dmarc_override
+            type: BOOL
+            value: "{{ outputs.classify.outputs.dmarc_override ?? false }}"
+        # One mail that fails (LLM down, odd body) must not stop the others.
+        # It stays unlabeled for the next run; require_all_ok below still
+        # marks this run as failed.
+        transmitFailed: false
+
+      # All results of this run in one log entry, visible in the execution's
+      # own log view. concurrencyLimit 1 runs the iterations in order, so the
+      # completion order of the list is the mail order (newest first).
+      - id: log_results
+        type: io.kestra.plugin.core.log.Log
+        message: |-
+          {{ outputs.each_email.iterationCount }} mail(s), iterations by state: {{ outputs.each_email.terminatedIterations | toJson }}{% for result in outputs.each_email.outputs %}{% if (result.outputs.category ?? '') is not empty %}
+          {{ vars.label_parent }}/{{ result.outputs.category }}{% if result.outputs.dmarc_override %} (DMARC failed; model said {{ result.outputs.model_category }}){% endif %}: "{{ result.outputs.subject }}" from {{ result.outputs.from }} ({{ result.outputs.received_at }})
+              {{ result.outputs.reason }}{% endif %}{% endfor %}
+
+      - id: require_all_ok
+        type: io.kestra.plugin.core.execution.Fail
+        condition: "{{ (outputs.each_email.terminatedIterations.FAILED ?? 0) > 0 }}"
+        errorMessage: >-
+          {{ outputs.each_email.terminatedIterations.FAILED }} of
+          {{ outputs.each_email.iterationCount }} mail(s) failed and stay
+          unlabeled for the next run. Their errors are in the log view with
+          the filter Kind = Loop.
 
 triggers:
   - id: every_2_minutes
