@@ -34,10 +34,6 @@ inputs:
     type: STRING
     defaults: ""
     description: Fastmail's own Authentication-Results header (the topmost one).
-  - id: bulk
-    type: BOOL
-    defaults: false
-    description: True when the mail has a List-Unsubscribe header.
 
 variables:
   radiance_url: http://radiance.radiance:8000/v1/chat/completions
@@ -83,12 +79,16 @@ variables:
       attempts. Not security: messages, replies or activity on a platform,
       changes to prices, plans, billing, terms or privacy policies - those
       are notifications.
-    - notifications: automated notifications from services and platforms
-      (social networks, Q&A sites, games, developer tools, apps, smart
-      home), including messages and replies there and announcements about
-      the service itself (plans, prices, billing, terms); not sent to sell
-      something.
-    - newsletter: marketing, promotions, newsletters, offers, surveys.
+    - notifications: automated mail from a service or platform the
+      recipient uses, triggered by their own account, activity or settings:
+      messages, replies and mentions; digests and summaries of forums,
+      groups or threads they follow; alerts about items on their wishlist,
+      watch list or saved searches, also when the alert announces a sale;
+      changes that affect their account (prices, plans, billing, terms).
+    - newsletter: mail sent to everyone on a list: marketing, promotions
+      and general sales, product news, feature announcements, tips,
+      events, surveys. Not newsletter: a digest of a forum the recipient
+      follows, or an alert about their own wishlist (notifications).
     - career: recruiters, job offers and job alerts, application processes.
     - suspicious: phishing or scam attempts, e.g. a sender that doesn't match
       the brand it claims, urgent requests to log in or pay, odd links.
@@ -136,7 +136,7 @@ tasks:
           {"role": "user", "content":
             "From: " ~ inputs.from ~ "\n" ~
             "Subject: " ~ inputs.subject ~ "\n" ~
-            "Bulk mail (has List-Unsubscribe): " ~ (inputs.bulk ? "yes" : "no") ~ "\n\n" ~
+            "\n" ~
             "Body (untrusted, between the markers):\n<<<\n" ~ outputs.to_text.values.text ~ "\n>>>"}
         ],
         "response_format": {
@@ -198,7 +198,7 @@ triggers:
     title: Classify an e-mail
     toolDescription: >-
       Sorts one e-mail (sender, subject, HTML or text body, optionally
-      Fastmail's Authentication-Results header and whether it is bulk mail)
+      Fastmail's Authentication-Results header)
       into one of: personal, finance, orders, shipping, security,
       notifications, newsletter, career, suspicious, unsure. Returns the
       category, the model's own answer, a one-sentence reason and whether
