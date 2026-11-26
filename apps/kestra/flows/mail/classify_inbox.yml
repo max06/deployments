@@ -104,12 +104,12 @@ variables:
       header: X-CampaignID
       pattern: '^fp_service_preorder'
       category: orders
-    # WMY_<year>_fp_service_mail_<n>: a numbered series, not tied to an
-    # order; the model called all of them newsletter.
+    # <campaign>_fp_service_mail_<n> (e.g. WMY_2025_...): numbered
+    # marketing series, not tied to an order.
     - name: flaschenpost campaign
       domain: flaschenpost.de
       header: X-CampaignID
-      pattern: '^WMY_'
+      pattern: 'fp_service_mail'
       category: newsletter
     # Airbnb's X-Template: OTP_* codes and TRUST_ACCOUNT_ALERT_* (new
     # device, changed e-mail, passkey added) are account access;
@@ -153,13 +153,19 @@ variables:
       header: From
       pattern: '<(versandbestaetigung|shipment-tracking)@amazon\.de>'
       category: shipping
-    # LinkedIn's X-LinkedIn-Template: email_m2m_invite_* are connection
-    # requests from people and their reminders; the network update digest
+    # LinkedIn's X-LinkedIn-Template: email_m2m_invite_* (m2m: member to
+    # member) are connection requests from people and their reminders,
+    # email_member_message_* direct messages; the network update digest
     # is LinkedIn's own marketing.
     - name: linkedin connection request
       domain: linkedin.com
       header: X-LinkedIn-Template
       pattern: '^email_m2m_invite'
+      category: career
+    - name: linkedin member message
+      domain: linkedin.com
+      header: X-LinkedIn-Template
+      pattern: '^email_member_message'
       category: career
     - name: linkedin network digest
       domain: linkedin.com
