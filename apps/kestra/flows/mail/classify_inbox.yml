@@ -48,6 +48,11 @@ variables:
   # Body size Fastmail returns per part. Big HTML mails are mostly markup;
   # classify_email keeps the first few KB of the text that remains.
   max_body_bytes: 200000
+  # Outlook and Gmail forward the old addresses to Fastmail addresses with
+  # the plus tag redirect.<provider>. Mail delivered there broke Fastmail's
+  # DMARC check on the way (Outlook alters the body and doesn't ARC-seal),
+  # so the forwarder's own verdict counts instead (see classify_email).
+  forwarder_address_regex: '\+redirect\.'
 
 tasks:
   # The session names the account id and the API endpoint.
@@ -137,7 +142,9 @@ tasks:
             "accountId": outputs.jmap.values.account_id,
             "#ids": {"resultOf": "query", "name": "Email/query", "path": "/ids"},
             "properties": ["id", "subject", "receivedAt", "from",
-                           "header:Authentication-Results:asText:all"]
+                           "header:Authentication-Results:asText:all",
+                           "header:X-Delivered-to:asText:all",
+                           "header:X-Received-Authentication-Results:asText:all"]
           }, "get"]
         ]
       } | toJson }}
@@ -161,6 +168,11 @@ tasks:
   # authserv-id <host>.messagingengine.com. They are joined here, one per
   # line. Headers of other servers are left out: forwarded mail carries
   # the old provider's verdict, and a sender can write any header it likes.
+  # delivered_to: the address Fastmail delivered to. Fastmail adds
+  # X-Delivered-to on top, so the first one is Fastmail's.
+  # forwarder_auth: the verdicts of earlier servers. Fastmail renames every
+  # Authentication-Results it receives to X-Received-Authentication-Results;
+  # for forwarded mail that includes the forwarder's check.
   - id: unlabeled
     type: io.kestra.plugin.core.output.OutputValues
     values:
@@ -172,7 +184,10 @@ tasks:
                         | if . == null then "" else ((.name // "") + " <" + .email + ">") end),
                  auth: ([(.["header:Authentication-Results:asText:all"] // [])[]
                          | select(test("^ *[A-Za-z0-9.-]+[.]messagingengine[.]com *;"))]
-                        | join("\n"))
+                        | join("\n")),
+                 delivered_to: ((.["header:X-Delivered-to:asText:all"] // [])[0] // ""),
+                 forwarder_auth: ((.["header:X-Received-Authentication-Results:asText:all"] // [])
+                                  | join("\n"))
                }]')
            | first | toJson }}
 
@@ -226,6 +241,10 @@ tasks:
               from: "{{ fromJson(item.value).from }}"
               subject: "{{ fromJson(item.value).subject }}"
               authentication_results: "{{ fromJson(item.value).auth }}"
+              # Only for mail that came through a forwarder of an old address.
+              forwarder_authentication_results: >-
+                {{ (fromJson(item.value).delivered_to | regexMatch(vars.forwarder_address_regex))
+                   ? fromJson(item.value).forwarder_auth : '' }}
               body: >-
                 {{ outputs.get_body.body
                    | jq('.methodResponses[0][1].list[0]

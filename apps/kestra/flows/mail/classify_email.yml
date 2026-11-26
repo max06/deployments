@@ -15,9 +15,11 @@ description: |
   - The model is told Fastmail's sender check ("Sender verified: yes,
     the mail really comes from <domain>", or no, or unknown), so it
     doesn't have to guess whether a sender domain is real.
-  - Override: a mail whose DMARC check failed at Fastmail is `suspicious`,
-    whatever the model says, unless ARC vouches for it (mail forwarded from
-    the old Outlook and Gmail addresses breaks DMARC but passes ARC).
+  - Forwarded mail: Outlook breaks Fastmail's DMARC check when it forwards
+    an old address (body altered, no ARC seal). For such mail the caller
+    passes the forwarder's own verdict, and that one counts.
+  - Override: a mail whose sender check says "no" (DMARC failed) is
+    `suspicious`, whatever the model says.
 
   Secrets: RADIANCE_API_KEY (the API key of the Radiance deployment).
 
@@ -39,6 +41,14 @@ inputs:
     description: >-
       Fastmail's own Authentication-Results headers (authserv-id
       *.messagingengine.com), one per line.
+  - id: forwarder_authentication_results
+    type: STRING
+    defaults: ""
+    description: >-
+      Only for mail that came through a forwarder of an old address: the
+      forwarder's verdict (Fastmail keeps it as
+      X-Received-Authentication-Results), one per line. Replaces
+      authentication_results for the sender check.
 
 variables:
   radiance_url: http://radiance.radiance:8000/v1/chat/completions
@@ -144,13 +154,32 @@ tasks:
   #   no DMARC result    -> unknown
   # The order matters: a sender could add its own header claiming
   # dmarc=pass, so "yes" needs pass and no other result anywhere.
+  #
+  # Forwarded mail (forwarder_authentication_results set): Fastmail's
+  # result is ignored, the forwarder's counts, with the same order. The
+  # forwarder is the first server that saw the mail, so its real verdict
+  # is always among these headers; a planted "pass" can't outvote a fail.
+  # What this can't catch: mail sent straight to the forwarding address
+  # (it has to be guessed) with a planted pass and no real forwarder
+  # verdict. Labels only, so an acceptable gap.
   - id: sender_check
     type: io.kestra.plugin.core.output.OutputValues
     values:
       line: >-
         {%- set auth = inputs.authentication_results -%}
+        {%- set forwarded = inputs.forwarder_authentication_results -%}
         {%- set domain = inputs.from | regexExtract(vars.from_domain_regex, 1) | default('the sender domain') -%}
-        {%- if (auth | regexMatch(vars.dmarc_fail_regex)) and not (auth | regexMatch(vars.arc_pass_regex)) -%}
+        {%- if forwarded is not empty -%}
+          {%- if forwarded | regexMatch(vars.dmarc_fail_regex) -%}
+        no, DMARC failed at the forwarder of an old address: the sender address may be forged
+          {%- elseif forwarded | regexMatch(vars.dmarc_not_pass_regex) -%}
+        unknown, forwarded mail, DMARC gave no clear result
+          {%- elseif forwarded | regexMatch(vars.dmarc_pass_regex) -%}
+        yes (DMARC pass, checked by the forwarder of an old address), the mail really comes from {{ domain }}
+          {%- else -%}
+        unknown, forwarded mail, no DMARC result
+          {%- endif -%}
+        {%- elseif (auth | regexMatch(vars.dmarc_fail_regex)) and not (auth | regexMatch(vars.arc_pass_regex)) -%}
         no, DMARC failed: the sender address may be forged
         {%- elseif auth | regexMatch(vars.dmarc_fail_regex) -%}
         unknown, forwarded mail
@@ -219,9 +248,8 @@ tasks:
     values:
       model_category: "{{ fromJson(outputs.answer.values.json).category }}"
       reason: "{{ fromJson(outputs.answer.values.json).reason }}"
-      dmarc_override: >-
-        {{ (inputs.authentication_results | regexMatch(vars.dmarc_fail_regex))
-           and not (inputs.authentication_results | regexMatch(vars.arc_pass_regex)) }}
+      # Same verdict the model was given: only a "no" overrides.
+      dmarc_override: "{{ outputs.sender_check.values.line | startsWith('no') }}"
 
 outputs:
   - id: category
