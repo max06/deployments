@@ -13,7 +13,9 @@ description: |
 
   - fetches the text body (Fastmail decodes base64 and quoted-printable,
     and caps the size with maxBodyValueBytes);
-  - classifies it with homelab.mail.classify_email;
+  - checks the fixed `rules` (sender domain plus a header pattern);
+  - classifies it with homelab.mail.classify_email, which takes a matching
+    rule's category for a verified sender and asks the model otherwise;
   - adds the label AI/<category>.
 
   Processed means "has an AI/ label". To classify mails again (after a
@@ -23,7 +25,8 @@ description: |
   must exist. A missing one fails the run with its name.
 
   Results: the task log_results logs every mail of the run (label, subject,
-  sender, the model's reason) in one entry of this execution's log.
+  sender, the rule or the model's reason) in one entry of this execution's
+  log.
 
   Failures: a failed LLM call fails the iteration (after classify_email's
   retries), and the mail stays unlabeled for the next run. The other mails
@@ -53,6 +56,116 @@ variables:
   # DMARC check on the way (Outlook alters the body and doesn't ARC-seal),
   # so the forwarder's own verdict counts instead (see classify_email).
   forwarder_address_regex: '\+redirect\.'
+
+  # Fixed rules, checked before the model: many senders label their mail
+  # in a header (template, campaign or message type), and that's more
+  # reliable than the model. The first rule that matches sets the
+  # category, and the model isn't asked.
+  #
+  #   domain    the sender domain (From), or a subdomain of it
+  #   header    the header to look at; any name, including From and Subject
+  #   pattern   regex (Java, find semantics: anywhere in the value);
+  #             single quotes keep backslashes literal
+  #   category  one of classify_email's categories
+  #
+  # A rule only counts when the sender check says "yes" (DMARC pass for
+  # that domain): anyone can write these headers, but only the real sender
+  # passes DMARC for its domain. Otherwise the model decides as usual, and
+  # the log says the rule was not applied.
+  #
+  # The headers were picked from a survey of the inbox (2026-11-26); the
+  # comment above each rule says what its values mean.
+  rules:
+    # The only Steam type seen: a game on the wishlist is on sale.
+    - name: steam wishlist sale
+      domain: steampowered.com
+      header: X-Steam-Message-Type
+      pattern: '^CEmailWishlistItemOnSale$'
+      category: notifications
+    # Discourse summaries and replies list the topics they cover.
+    - name: nixos discourse
+      domain: discourse.nixos.org
+      header: X-Discourse-Topic-Ids
+      pattern: '.'
+      category: notifications
+    # flaschenpost names every mail type in X-CampaignID.
+    - name: flaschenpost invoice
+      domain: flaschenpost.de
+      header: X-CampaignID
+      pattern: '^fp_service_invoice'
+      category: finance
+    - name: flaschenpost delivery notice
+      domain: flaschenpost.de
+      header: X-CampaignID
+      pattern: '^fp_service_deliverynotice'
+      category: shipping
+    - name: flaschenpost preorder
+      domain: flaschenpost.de
+      header: X-CampaignID
+      pattern: '^fp_service_preorder'
+      category: orders
+    # WMY_<year>_fp_service_mail_<n>: a numbered series, not tied to an
+    # order; the model called all of them newsletter.
+    - name: flaschenpost campaign
+      domain: flaschenpost.de
+      header: X-CampaignID
+      pattern: '^WMY_'
+      category: newsletter
+    # Airbnb's X-Template: OTP_* codes and TRUST_ACCOUNT_ALERT_* (new
+    # device, changed e-mail, passkey added) are account access;
+    # PRIVACY_* are the inactive-account deletion notices.
+    - name: airbnb account access
+      domain: airbnb.com
+      header: X-Template
+      pattern: '^(OTP_|TRUST_ACCOUNT_ALERT_)'
+      category: security
+    - name: airbnb privacy notice
+      domain: airbnb.com
+      header: X-Template
+      pattern: '^PRIVACY_'
+      category: notifications
+    # Slack: sign-in codes and new sign-in alerts.
+    - name: slack sign-in
+      domain: slack.com
+      header: X-Slack-Email-Template
+      pattern: '(confirmation_email_code|feat_login_notify)$'
+      category: security
+    # Uber sends through Mailgun: campaigns carry a campaign_id in
+    # X-Mailgun-Variables, ride receipts the tag completed_receipt.
+    - name: uber campaign
+      domain: uber.com
+      header: X-Mailgun-Variables
+      pattern: '"campaign_id"'
+      category: newsletter
+    - name: uber receipt
+      domain: uber.com
+      header: X-Mailgun-Tag
+      pattern: '^completed_receipt$'
+      category: orders
+    # Amazon tells its mail types apart by the sender address only.
+    - name: amazon order
+      domain: amazon.de
+      header: From
+      pattern: '<(bestellbestaetigung|order-update)@amazon\.de>'
+      category: orders
+    - name: amazon shipping
+      domain: amazon.de
+      header: From
+      pattern: '<(versandbestaetigung|shipment-tracking)@amazon\.de>'
+      category: shipping
+    # LinkedIn's X-LinkedIn-Template: email_m2m_invite_* are connection
+    # requests from people and their reminders; the network update digest
+    # is LinkedIn's own marketing.
+    - name: linkedin connection request
+      domain: linkedin.com
+      header: X-LinkedIn-Template
+      pattern: '^email_m2m_invite'
+      category: career
+    - name: linkedin network digest
+      domain: linkedin.com
+      header: X-LinkedIn-Template
+      pattern: '^email_your_network_update_digest'
+      category: newsletter
 
 tasks:
   # The session names the account id and the API endpoint.
@@ -115,6 +228,20 @@ tasks:
       homelab.mail.classify_email.
 
   # Newest unlabeled inbox mails: in the inbox AND in none of the AI labels.
+  # The properties to fetch per mail: the fixed ones plus every header a
+  # rule looks at (JMAP fetches single headers by name).
+  - id: fetch_properties
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      list: >-
+        {{ vars.rules | toJson
+           | jq('["id", "subject", "receivedAt", "from",
+                  "header:Authentication-Results:asText:all",
+                  "header:X-Delivered-to:asText:all",
+                  "header:X-Received-Authentication-Results:asText:all"]
+                 + ([.[].header] | unique | map("header:" + . + ":asText:all"))')
+           | first | toJson }}
+
   # Metadata only (the 1 MB task-result limit); each iteration fetches its
   # own body.
   - id: fetch_unlabeled
@@ -141,10 +268,7 @@ tasks:
           ["Email/get", {
             "accountId": outputs.jmap.values.account_id,
             "#ids": {"resultOf": "query", "name": "Email/query", "path": "/ids"},
-            "properties": ["id", "subject", "receivedAt", "from",
-                           "header:Authentication-Results:asText:all",
-                           "header:X-Delivered-to:asText:all",
-                           "header:X-Received-Authentication-Results:asText:all"]
+            "properties": fromJson(outputs.fetch_properties.values.list)
           }, "get"]
         ]
       } | toJson }}
@@ -178,13 +302,28 @@ tasks:
   # e.g. mx.microsoft.com. Both are collected. A sender can plant such
   # headers too, but classify_email lets a fail or a missing result beat
   # any pass, so a planted pass can't outvote the forwarder's real verdict.
+  # rule_name, rule_category: the first rule of vars.rules that matches
+  # (sender domain or a subdomain of it, and the pattern found in one of
+  # the values of its header), or "" for none. classify_email decides
+  # whether it counts. The rules go into the jq program as a JSON literal.
   - id: unlabeled
     type: io.kestra.plugin.core.output.OutputValues
     values:
       emails: >-
         {{ outputs.fetch_unlabeled.body
-           | jq('[.methodResponses[1][1].list[] | {
+           | jq('(' ~ (vars.rules | toJson) ~ ') as $rules
+               | [.methodResponses[1][1].list[]
+               | . as $mail
+               | (((.from // [])[0].email // "") | ascii_downcase | split("@") | last // "") as $domain
+               | (first($rules[] as $rule
+                        | select($domain == $rule.domain or ($domain | endswith("." + $rule.domain)))
+                        | select([($mail["header:" + $rule.header + ":asText:all"] // [])[]
+                                  | select(test($rule.pattern))] | length > 0)
+                        | $rule) // {}) as $matched_rule
+               | {
                  id, subject: (.subject // ""), receivedAt,
+                 rule_name: ($matched_rule.name // ""),
+                 rule_category: ($matched_rule.category // ""),
                  from: ((.from // [])[0] // null
                         | if . == null then "" else ((.name // "") + " <" + .email + ">") end),
                  auth: ([(.["header:Authentication-Results:asText:all"] // [])[]
@@ -252,6 +391,9 @@ tasks:
               forwarder_authentication_results: >-
                 {{ (fromJson(item.value).delivered_to | regexMatch(vars.forwarder_address_regex))
                    ? fromJson(item.value).forwarder_auth : '' }}
+              # The matching rule of vars.rules, if any (see unlabeled).
+              rule_name: "{{ fromJson(item.value).rule_name }}"
+              rule_category: "{{ fromJson(item.value).rule_category }}"
               body: >-
                 {{ outputs.get_body.body
                    | jq('.methodResponses[0][1].list[0]
@@ -332,6 +474,9 @@ tasks:
           - id: sender_verified
             type: STRING
             value: "{{ outputs.classify.outputs.sender_verified ?? '' }}"
+          - id: rule
+            type: STRING
+            value: "{{ outputs.classify.outputs.rule ?? '' }}"
         # One mail that fails (LLM down, odd body) must not stop the others.
         # It stays unlabeled for the next run; require_all_ok below still
         # marks this run as failed.
@@ -345,8 +490,9 @@ tasks:
         message: |-
           {{ outputs.each_email.iterationCount }} mail(s), iterations by state: {{ outputs.each_email.terminatedIterations | toJson }}{% for result in outputs.each_email.outputs %}{% if (result.outputs.category ?? '') is not empty %}
           {{ vars.label_parent }}/{{ result.outputs.category }}{% if result.outputs.dmarc_override %} (DMARC failed; model said {{ result.outputs.model_category }}){% endif %}: "{{ result.outputs.subject }}" from {{ result.outputs.from }} ({{ result.outputs.received_at }})
-              sender verified: {{ result.outputs.sender_verified }}
-              {{ result.outputs.reason }}{% endif %}{% endfor %}
+              sender verified: {{ result.outputs.sender_verified }}{% if (result.outputs.rule ?? '') is not empty %}
+              rule: {{ result.outputs.rule }}{% endif %}{% if (result.outputs.reason ?? '') is not empty %}
+              {{ result.outputs.reason }}{% endif %}{% endif %}{% endfor %}
 
       - id: require_all_ok
         type: io.kestra.plugin.core.execution.Fail

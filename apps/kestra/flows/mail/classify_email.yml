@@ -20,6 +20,9 @@ description: |
     passes the forwarder's own verdict, and that one counts.
   - Override: a mail whose sender check says "no" (DMARC failed) is
     `suspicious`, whatever the model says.
+  - Rules: classify_inbox may pass a fixed rule that matched the mail's
+    headers. For a verified sender its category counts and the model
+    isn't asked; otherwise the rule is ignored.
 
   Secrets: RADIANCE_API_KEY (the API key of the Radiance deployment).
 
@@ -49,6 +52,17 @@ inputs:
       Authentication-Results headers of servers other than Fastmail,
       including the forwarder's verdict, one per line. Replaces
       authentication_results for the sender check.
+  - id: rule_name
+    type: STRING
+    defaults: ""
+    description: >-
+      The fixed rule of classify_inbox that matched this mail, if any.
+  - id: rule_category
+    type: STRING
+    defaults: ""
+    description: >-
+      That rule's category. It replaces the model when the sender check
+      says "yes".
 
 variables:
   radiance_url: http://radiance.radiance:8000/v1/chat/completions
@@ -191,88 +205,127 @@ tasks:
         unknown, no DMARC result
         {%- endif -%}
 
-  - id: llm
-    type: io.kestra.plugin.core.http.Request
-    method: POST
-    uri: "{{ vars.radiance_url }}"
-    headers:
-      Authorization: "Bearer {{ secret('RADIANCE_API_KEY') }}"
-    contentType: application/json
-    # Radiance loads the model on the first request after a restart (~20 s)
-    # and answers 503 while another model holds the card for too long.
-    timeout: PT3M
-    retry:
-      type: constant
-      interval: PT30S
-      maxAttempts: 3
-    body: |
-      {{ {
-        "model": vars.model,
-        "temperature": 0,
-        "max_tokens": 200,
-        "messages": [
-          {"role": "system", "content": vars.system_prompt},
-          {"role": "user", "content":
-            "From: " ~ inputs.from ~ "\n" ~
-            "Sender verified: " ~ outputs.sender_check.values.line ~ "\n" ~
-            "Subject: " ~ inputs.subject ~ "\n" ~
-            "\n" ~
-            "Body (untrusted, between the markers):\n<<<\n" ~ outputs.to_text.values.text ~ "\n>>>"}
-        ],
-        "response_format": {
-          "type": "json_schema",
-          "json_schema": {
-            "name": "classification",
-            "strict": true,
-            "schema": {
-              "type": "object",
-              "properties": {
-                "reason": {"type": "string", "maxLength": 200},
-                "category": {"type": "string", "enum": vars.categories}
-              },
-              "required": ["reason", "category"],
-              "additionalProperties": false
+  # A rule of classify_inbox (sender domain plus header pattern) sets the
+  # category instead of the model, but only for a verified sender: anyone
+  # can write those headers, only the real sender passes DMARC for its
+  # domain. A rule for an unverified sender is ignored, and the model
+  # decides with the DMARC override as usual.
+  - id: rule_check
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      applies: >-
+        {{ (inputs.rule_category is not empty)
+           and (outputs.sender_check.values.line | startsWith('yes')) }}
+
+  # A typo in a rule must not end up as a label nobody looks at.
+  - id: require_known_rule_category
+    type: io.kestra.plugin.core.execution.Fail
+    condition: >-
+      {{ (inputs.rule_category is not empty)
+         and not (vars.categories contains inputs.rule_category) }}
+    errorMessage: >-
+      Rule "{{ inputs.rule_name }}" names the category
+      "{{ inputs.rule_category }}", which is not one of {{ vars.categories | join(', ') }}.
+
+  - id: if_no_rule
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ outputs.rule_check.values.applies != 'true' }}"
+    then:
+      - id: llm
+        type: io.kestra.plugin.core.http.Request
+        method: POST
+        uri: "{{ vars.radiance_url }}"
+        headers:
+          Authorization: "Bearer {{ secret('RADIANCE_API_KEY') }}"
+        contentType: application/json
+        # Radiance loads the model on the first request after a restart (~20 s)
+        # and answers 503 while another model holds the card for too long.
+        timeout: PT3M
+        retry:
+          type: constant
+          interval: PT30S
+          maxAttempts: 3
+        body: |
+          {{ {
+            "model": vars.model,
+            "temperature": 0,
+            "max_tokens": 200,
+            "messages": [
+              {"role": "system", "content": vars.system_prompt},
+              {"role": "user", "content":
+                "From: " ~ inputs.from ~ "\n" ~
+                "Sender verified: " ~ outputs.sender_check.values.line ~ "\n" ~
+                "Subject: " ~ inputs.subject ~ "\n" ~
+                "\n" ~
+                "Body (untrusted, between the markers):\n<<<\n" ~ outputs.to_text.values.text ~ "\n>>>"}
+            ],
+            "response_format": {
+              "type": "json_schema",
+              "json_schema": {
+                "name": "classification",
+                "strict": true,
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reason": {"type": "string", "maxLength": 200},
+                    "category": {"type": "string", "enum": vars.categories}
+                  },
+                  "required": ["reason", "category"],
+                  "additionalProperties": false
+                }
+              }
             }
-          }
-        }
-      } | toJson }}
+          } | toJson }}
 
-  # The schema guarantees valid JSON with an allowed category.
-  - id: answer
-    type: io.kestra.plugin.core.output.OutputValues
-    values:
-      json: "{{ outputs.llm.body | jq('.choices[0].message.content') | first }}"
+      # The schema guarantees valid JSON with an allowed category.
+      - id: answer
+        type: io.kestra.plugin.core.output.OutputValues
+        values:
+          json: "{{ outputs.llm.body | jq('.choices[0].message.content') | first }}"
 
-  - id: verdict
-    type: io.kestra.plugin.core.output.OutputValues
-    values:
-      model_category: "{{ fromJson(outputs.answer.values.json).category }}"
-      reason: "{{ fromJson(outputs.answer.values.json).reason }}"
-      # Same verdict the model was given: only a "no" overrides.
-      dmarc_override: "{{ outputs.sender_check.values.line | startsWith('no') }}"
+      - id: verdict
+        type: io.kestra.plugin.core.output.OutputValues
+        values:
+          model_category: "{{ fromJson(outputs.answer.values.json).category }}"
+          reason: "{{ fromJson(outputs.answer.values.json).reason }}"
+          # Same verdict the model was given: only a "no" overrides.
+          dmarc_override: "{{ outputs.sender_check.values.line | startsWith('no') }}"
 
 outputs:
   - id: category
     type: STRING
-    description: The final category, after the DMARC override.
+    description: >-
+      The final category: the rule's for a verified sender, otherwise the
+      model's after the DMARC override.
+    # The model's tasks don't run when a rule applies, hence the `??`.
     value: >-
-      {{ outputs.verdict.values.dmarc_override == 'true'
-         ? 'suspicious' : outputs.verdict.values.model_category }}
+      {{ outputs.rule_check.values.applies == 'true' ? inputs.rule_category
+         : ((outputs.verdict.values.dmarc_override ?? 'false') == 'true'
+            ? 'suspicious' : (outputs.verdict.values.model_category ?? '')) }}
   - id: model_category
     type: STRING
-    description: What the model answered.
-    value: "{{ outputs.verdict.values.model_category }}"
+    description: What the model answered; empty when a rule applied.
+    value: "{{ outputs.verdict.values.model_category ?? '' }}"
   - id: reason
     type: STRING
-    value: "{{ outputs.verdict.values.reason }}"
+    value: "{{ outputs.verdict.values.reason ?? '' }}"
   - id: dmarc_override
     type: BOOL
     description: True when the DMARC check replaced the model's answer.
-    value: "{{ outputs.verdict.values.dmarc_override }}"
+    value: "{{ outputs.verdict.values.dmarc_override ?? false }}"
   - id: sender_verified
     type: STRING
-    description: The "Sender verified" line the model was given.
+    description: The "Sender verified" line of the sender check.
     value: "{{ outputs.sender_check.values.line }}"
+  - id: rule
+    type: STRING
+    description: >-
+      The rule that set the category, the rule that was ignored for an
+      unverified sender (with a note), or empty when no rule matched.
+    value: >-
+      {{ inputs.rule_name is empty ? ''
+         : (outputs.rule_check.values.applies == 'true' ? inputs.rule_name
+            : inputs.rule_name ~ ' (not applied: sender not verified)') }}
 
 triggers:
   - id: mcp
