@@ -170,9 +170,14 @@ tasks:
   # the old provider's verdict, and a sender can write any header it likes.
   # delivered_to: the address Fastmail delivered to. Fastmail adds
   # X-Delivered-to on top, so the first one is Fastmail's.
-  # forwarder_auth: the verdicts of earlier servers. Fastmail renames every
-  # Authentication-Results it receives to X-Received-Authentication-Results;
-  # for forwarded mail that includes the forwarder's check.
+  # forwarder_auth: the verdicts of earlier servers; for forwarded mail
+  # that includes the forwarder's check. Fastmail stores them in two ways:
+  # older mail (seen September 2026) has them renamed to
+  # X-Received-Authentication-Results, newer mail (November 2026) keeps
+  # them as Authentication-Results with the other server's authserv-id,
+  # e.g. mx.microsoft.com. Both are collected. A sender can plant such
+  # headers too, but classify_email lets a fail or a missing result beat
+  # any pass, so a planted pass can't outvote the forwarder's real verdict.
   - id: unlabeled
     type: io.kestra.plugin.core.output.OutputValues
     values:
@@ -186,7 +191,9 @@ tasks:
                          | select(test("^ *[A-Za-z0-9.-]+[.]messagingengine[.]com *;"))]
                         | join("\n")),
                  delivered_to: ((.["header:X-Delivered-to:asText:all"] // [])[0] // ""),
-                 forwarder_auth: ((.["header:X-Received-Authentication-Results:asText:all"] // [])
+                 forwarder_auth: (((.["header:X-Received-Authentication-Results:asText:all"] // [])
+                                   + [(.["header:Authentication-Results:asText:all"] // [])[]
+                                      | select(test("^ *[A-Za-z0-9.-]+[.]messagingengine[.]com *;") | not)])
                                   | join("\n"))
                }]')
            | first | toJson }}

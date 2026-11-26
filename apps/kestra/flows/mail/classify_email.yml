@@ -46,8 +46,8 @@ inputs:
     defaults: ""
     description: >-
       Only for mail that came through a forwarder of an old address: the
-      forwarder's verdict (Fastmail keeps it as
-      X-Received-Authentication-Results), one per line. Replaces
+      Authentication-Results headers of servers other than Fastmail,
+      including the forwarder's verdict, one per line. Replaces
       authentication_results for the sender check.
 
 variables:
